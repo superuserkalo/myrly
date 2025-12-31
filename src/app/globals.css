@@ -2,6 +2,14 @@
 
 :root {
   color-scheme: dark;
+  --prompt-text: #f5f5f5;
+  --prompt-muted: rgba(245, 245, 245, 0.65);
+  --prompt-button-bg: rgba(255, 255, 255, 0.08);
+  --prompt-button-soft: rgba(255, 255, 255, 0.05);
+  --prompt-button-hover: rgba(255, 255, 255, 0.18);
+  --prompt-surface: #121212;
+  --prompt-border: rgba(39, 39, 39, 0.7);
+  --prompt-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
@@ -38,6 +46,110 @@
 
   .font-display {
     font-family: var(--font-display), "Times New Roman", serif;
+  }
+}
+
+.board-theme {
+  --board-bg: #f4f5fa;
+  --canvas-bg: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: rgba(15, 23, 42, 0.06);
+  --surface-soft: rgba(15, 23, 42, 0.08);
+  --border: rgba(15, 23, 42, 0.12);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: rgba(17, 24, 39, 0.7);
+  --text-faint: rgba(17, 24, 39, 0.4);
+  --icon-muted: rgba(17, 24, 39, 0.6);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--text-muted);
+  --prompt-text: var(--text-primary);
+  --prompt-muted: var(--text-muted);
+  --prompt-button-bg: rgba(15, 23, 42, 0.08);
+  --prompt-button-soft: rgba(15, 23, 42, 0.05);
+  --prompt-button-hover: rgba(15, 23, 42, 0.14);
+  --prompt-surface: var(--surface);
+  --prompt-border: var(--border);
+  --prompt-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+.board-theme[data-theme="dark"] {
+  --board-bg: #0b0d12;
+  --canvas-bg: #11151c;
+  --surface: #151a22;
+  --surface-hover: rgba(148, 163, 184, 0.14);
+  --surface-soft: rgba(148, 163, 184, 0.18);
+  --border: rgba(148, 163, 184, 0.25);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5f5;
+  --text-muted: rgba(226, 232, 240, 0.7);
+  --text-faint: rgba(226, 232, 240, 0.45);
+  --icon-muted: rgba(226, 232, 240, 0.65);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--text-muted);
+  --prompt-text: var(--text-primary);
+  --prompt-muted: var(--text-muted);
+  --prompt-button-bg: rgba(248, 250, 252, 0.1);
+  --prompt-button-soft: rgba(248, 250, 252, 0.06);
+  --prompt-button-hover: rgba(248, 250, 252, 0.18);
+  --prompt-surface: var(--surface);
+  --prompt-border: var(--border);
+  --prompt-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  .board-theme[data-theme="system"] {
+    --board-bg: #0b0d12;
+    --canvas-bg: #11151c;
+    --surface: #151a22;
+    --surface-hover: rgba(148, 163, 184, 0.14);
+    --surface-soft: rgba(148, 163, 184, 0.18);
+    --border: rgba(148, 163, 184, 0.25);
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5f5;
+    --text-muted: rgba(226, 232, 240, 0.7);
+    --text-faint: rgba(226, 232, 240, 0.45);
+    --icon-muted: rgba(226, 232, 240, 0.65);
+    --color-surface: var(--surface);
+    --color-border: var(--border);
+    --color-muted: var(--text-muted);
+    --prompt-text: var(--text-primary);
+    --prompt-muted: var(--text-muted);
+    --prompt-button-bg: rgba(248, 250, 252, 0.1);
+    --prompt-button-soft: rgba(248, 250, 252, 0.06);
+    --prompt-button-hover: rgba(248, 250, 252, 0.18);
+    --prompt-surface: var(--surface);
+    --prompt-border: var(--border);
+    --prompt-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .board-theme[data-theme="system"] {
+    --board-bg: #f4f5fa;
+    --canvas-bg: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: rgba(15, 23, 42, 0.06);
+    --surface-soft: rgba(15, 23, 42, 0.08);
+    --border: rgba(15, 23, 42, 0.12);
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-muted: rgba(17, 24, 39, 0.7);
+    --text-faint: rgba(17, 24, 39, 0.4);
+    --icon-muted: rgba(17, 24, 39, 0.6);
+    --color-surface: var(--surface);
+    --color-border: var(--border);
+    --color-muted: var(--text-muted);
+    --prompt-text: var(--text-primary);
+    --prompt-muted: var(--text-muted);
+    --prompt-button-bg: rgba(15, 23, 42, 0.08);
+    --prompt-button-soft: rgba(15, 23, 42, 0.05);
+    --prompt-button-hover: rgba(15, 23, 42, 0.14);
+    --prompt-surface: var(--surface);
+    --prompt-border: var(--border);
+    --prompt-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
   }
 }
 

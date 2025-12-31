@@ -2,20 +2,29 @@
 
 import {
   CopyPlus,
+  FolderOpen,
   Hand,
   ImagePlus,
+  ImageDown,
   Library,
   Link2,
   Lock,
   Menu,
   Minus,
+  Monitor,
+  Moon,
   MousePointer2,
   Plus,
   Redo2,
+  RotateCcw,
+  Save,
+  Search,
   Share2,
+  Sun,
   Trash2,
   Type,
   Undo2,
+  Users,
 } from "lucide-react";
 import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -68,6 +77,39 @@ const createId = () => {
   return `id-${Date.now()}-${Math.round(Math.random() * 100000)}`;
 };
 
+const IconX = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z" />
+  </svg>
+);
+
+const IconTikTok = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+  </svg>
+);
+
+const IconYouTube = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M23.498 6.186a3.013 3.013 0 0 0-2.121-2.13C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.556A3.013 3.013 0 0 0 .502 6.186 31.036 31.036 0 0 0 0 12a31.036 31.036 0 0 0 .502 5.814 3.013 3.013 0 0 0 2.121 2.13C4.495 20.5 12 20.5 12 20.5s7.505 0 9.377-.556a3.013 3.013 0 0 0 2.121-2.13A31.036 31.036 0 0 0 24 12a31.036 31.036 0 0 0-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+  </svg>
+);
+
 const normalizeRect = (
   start: { x: number; y: number },
   end: { x: number; y: number },
@@ -90,9 +132,11 @@ const rectsIntersect = (
 
 export default function MooodyBoard() {
   const [activeTool, setActiveTool] = useState<Tool>("select");
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -113,6 +157,8 @@ export default function MooodyBoard() {
   } | null>(null);
   const [historyIndex, setHistoryIndex] = useState(0);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const editingRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLSpanElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -180,6 +226,50 @@ export default function MooodyBoard() {
   useEffect(() => {
     viewRef.current = { zoom, pan };
   }, [zoom, pan]);
+
+  useEffect(() => {
+    const stored =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("mooody-board-theme")
+        : null;
+    if (stored === "light" || stored === "dark" || stored === "system") {
+      setTheme(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem("mooody-board-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) {
+        return;
+      }
+      if (menuButtonRef.current?.contains(target)) {
+        return;
+      }
+      setIsMenuOpen(false);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [isMenuOpen]);
 
   useEffect(() => {
     if (!canvasRef.current || hasCentered.current) {
@@ -708,6 +798,10 @@ export default function MooodyBoard() {
         point,
       );
       setSelectionRect(nextRect);
+      const nextSelected = itemsRef.current
+        .filter((item) => rectsIntersect(nextRect, getItemBounds(item)))
+        .map((item) => item.id);
+      setSelectedIds(nextSelected);
       return;
     }
     if (event.pointerType === "touch") {
@@ -816,12 +910,14 @@ export default function MooodyBoard() {
         y: (event.clientY - rect.top - pan.y) / zoom,
       };
     }
+    const isAlreadySelected = selectedIds.includes(itemId);
+    const nextSelection = isAlreadySelected ? selectedIds : [itemId];
     setContextMenu({
       x: event.clientX,
       y: event.clientY,
-      targetId: itemId,
+      targetIds: nextSelection,
     });
-    setSelectedId(itemId);
+    setSelectedIds(nextSelection);
     setEditingId(null);
   };
 
@@ -830,19 +926,41 @@ export default function MooodyBoard() {
     item: CanvasItem,
   ) => {
     event.stopPropagation();
-    setSelectedId(item.id);
     if (activeTool !== "select" || editingId === item.id) {
       return;
     }
-    if (item.locked) {
+    const toggleKey = event.shiftKey || event.metaKey || event.ctrlKey;
+    if (toggleKey) {
+      toggleSelection(item.id);
+      setEditingId(null);
       return;
     }
+    const isAlreadySelected = selectedIds.includes(item.id);
+    const selectionForDrag = isAlreadySelected ? selectedIds : [item.id];
+    if (!isAlreadySelected) {
+      setSelectedIds(selectionForDrag);
+    }
+    const draggableIds = selectionForDrag.filter(
+      (id) => !getItemById(id)?.locked,
+    );
+    if (draggableIds.length === 0) {
+      return;
+    }
+    const origins = draggableIds.reduce(
+      (acc, id) => {
+        const target = getItemById(id);
+        if (target) {
+          acc[id] = { x: target.x, y: target.y };
+        }
+        return acc;
+      },
+      {} as Record<string, { x: number; y: number }>,
+    );
     dragRef.current = {
-      id: item.id,
+      ids: draggableIds,
       startX: event.clientX,
       startY: event.clientY,
-      originX: item.x,
-      originY: item.y,
+      origins,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -852,18 +970,18 @@ export default function MooodyBoard() {
     itemId: string,
   ) => {
     const dragState = dragRef.current;
-    if (!dragState || dragState.id !== itemId) {
+    if (!dragState || !dragState.ids.includes(itemId)) {
       return;
     }
     const deltaX = (event.clientX - dragState.startX) / zoom;
     const deltaY = (event.clientY - dragState.startY) / zoom;
     setItems((prev) => {
       const nextItems = prev.map((item) =>
-        item.id === itemId
+        dragState.ids.includes(item.id)
           ? {
               ...item,
-              x: dragState.originX + deltaX,
-              y: dragState.originY + deltaY,
+              x: (dragState.origins[item.id]?.x ?? item.x) + deltaX,
+              y: (dragState.origins[item.id]?.y ?? item.y) + deltaY,
             }
           : item,
       );
@@ -876,7 +994,7 @@ export default function MooodyBoard() {
     event: ReactPointerEvent<HTMLDivElement>,
     itemId: string,
   ) => {
-    if (!dragRef.current || dragRef.current.id !== itemId) {
+    if (!dragRef.current || !dragRef.current.ids.includes(itemId)) {
       return;
     }
     event.currentTarget.releasePointerCapture(event.pointerId);
@@ -908,7 +1026,7 @@ export default function MooodyBoard() {
       startYPos: item.y,
       rotation: item.rotation ?? 0,
     };
-    setSelectedId(itemId);
+    selectOnly(itemId);
     setEditingId(null);
   };
 
@@ -934,7 +1052,7 @@ export default function MooodyBoard() {
       startAngle: angle,
       startRotation: item.rotation ?? 0,
     };
-    setSelectedId(itemId);
+    selectOnly(itemId);
     setEditingId(null);
   };
 
@@ -1031,7 +1149,7 @@ export default function MooodyBoard() {
       return;
     }
     setEditingId(itemId);
-    setSelectedId(itemId);
+    selectOnly(itemId);
     setActiveTool("text");
   };
 
@@ -1082,7 +1200,7 @@ export default function MooodyBoard() {
         rotation: 0,
       };
       commitHistory([...itemsRef.current, newItem]);
-      setSelectedId(newItem.id);
+      selectOnly(newItem.id);
       pendingImagePoint.current = null;
     };
     img.src = url;
@@ -1091,6 +1209,64 @@ export default function MooodyBoard() {
 
   const zoomOut = () => setZoom((prev) => clamp(prev - 0.1, 0.3, 2.5));
   const zoomIn = () => setZoom((prev) => clamp(prev + 0.1, 0.3, 2.5));
+
+  const handleResetCanvas = () => {
+    historyRef.current = [[]];
+    historyIndexRef.current = 0;
+    setHistoryIndex(0);
+    itemsRef.current = [];
+    setItems([]);
+    clearSelection();
+    setEditingId(null);
+    showToast("Canvas reset");
+  };
+
+  const handleOpenFile = () => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      pendingImagePoint.current = {
+        x: (rect.width / 2 - pan.x) / zoom,
+        y: (rect.height / 2 - pan.y) / zoom,
+      };
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFindOnCanvas = () => {
+    const query = window.prompt("Find on canvas");
+    if (!query) {
+      return;
+    }
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return;
+    }
+    const match = itemsRef.current.find(
+      (item) =>
+        item.type === "text" &&
+        item.text.toLowerCase().includes(normalized),
+    );
+    if (!match) {
+      showToast("No matches found");
+      return;
+    }
+    selectOnly(match.id);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+    const bounds = getItemBounds(match);
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+    setPan({
+      x: rect.width / 2 - centerX * zoom,
+      y: rect.height / 2 - centerY * zoom,
+    });
+  };
+
+  const handleComingSoon = (message: string) => {
+    showToast(message);
+  };
   const applyWheel = ({
     deltaX,
     deltaY,
@@ -1163,27 +1339,55 @@ export default function MooodyBoard() {
     { id: "text", icon: Type, label: "Text" },
     { id: "image", icon: ImagePlus, label: "Image" },
   ] as const;
-  const contextItem = contextMenu
-    ? items.find((item) => item.id === contextMenu.targetId) ?? null
-    : null;
+  const contextItems = contextMenu
+    ? items.filter((item) => contextMenu.targetIds.includes(item.id))
+    : [];
+  const contextItem = contextItems[0] ?? null;
+  const selectedItems = items.filter((item) => selectedIds.includes(item.id));
+  const groupBounds =
+    selectedItems.length > 1
+      ? (() => {
+          const [first, ...rest] = selectedItems;
+          let combined = getItemBounds(first);
+          rest.forEach((item) => {
+            const bounds = getItemBounds(item);
+            combined = {
+              minX: Math.min(combined.minX, bounds.minX),
+              minY: Math.min(combined.minY, bounds.minY),
+              maxX: Math.max(combined.maxX, bounds.maxX),
+              maxY: Math.max(combined.maxY, bounds.maxY),
+            };
+          });
+          return combined;
+        })()
+      : null;
+
+  const colorScheme =
+    theme === "dark" ? "dark" : theme === "light" ? "light" : "light dark";
 
   return (
     <div
-      className="relative min-h-[100svh] bg-[#f4f5fa] text-[#111827]"
-      style={{ colorScheme: "light" }}
+      className="board-theme relative min-h-[100svh] bg-[color:var(--board-bg)] text-[color:var(--text-primary)]"
+      data-theme={theme}
+      style={{ colorScheme }}
     >
       <header className="fixed left-0 right-0 top-0 z-30">
         <div className="flex w-full items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <button
             type="button"
             aria-label="Open settings"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white shadow-sm transition hover:bg-white/80"
+            ref={menuButtonRef}
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-sm transition hover:bg-[color:var(--surface-hover)] ${
+              isMenuOpen ? "ring-2 ring-indigo-400/60" : ""
+            }`}
+            aria-expanded={isMenuOpen}
           >
             <Menu className="h-5 w-5" />
           </button>
 
           <div className="pointer-events-none absolute left-[47%] top-3 -translate-x-1/2 sm:left-1/2 sm:top-4">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-black/10 bg-white px-2 py-1.5 shadow-md sm:gap-2 sm:px-3 sm:py-2">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1.5 shadow-md sm:gap-2 sm:px-3 sm:py-2">
               {toolbarButtons.map((tool) => {
                 const Icon = tool.icon;
                 const isActive = activeTool === tool.id;
@@ -1197,7 +1401,7 @@ export default function MooodyBoard() {
                     className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
                       isActive
                         ? "bg-indigo-500 text-white shadow-[0_8px_20px_rgba(79,70,229,0.35)]"
-                        : "text-[#1f2937] hover:bg-black/5"
+                        : "text-[color:var(--text-primary)] hover:bg-[color:var(--surface-hover)]"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -1217,10 +1421,170 @@ export default function MooodyBoard() {
         </div>
       </header>
 
+      {isMenuOpen && (
+        <div
+          ref={menuRef}
+          className="fixed left-4 top-[72px] z-40 w-72 rounded-3xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3 text-sm text-[color:var(--text-primary)] shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:left-6 sm:top-[84px]"
+        >
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                handleOpenFile();
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-[color:var(--surface-hover)]"
+            >
+              <FolderOpen className="h-4 w-4 text-indigo-500" />
+              <span>Open file</span>
+              <span className="ml-auto text-[11px] text-[color:var(--text-faint)]">
+                ⌘O
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleComingSoon("Save to coming soon");
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-[color:var(--surface-hover)]"
+            >
+              <Save className="h-4 w-4 text-indigo-500" />
+              <span>Save to...</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleComingSoon("Export image coming soon");
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-[color:var(--surface-hover)]"
+            >
+              <ImageDown className="h-4 w-4 text-indigo-500" />
+              <span>Export image</span>
+              <span className="ml-auto text-[11px] text-[color:var(--text-faint)]">
+                ⌘⇧E
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleComingSoon("Live collaboration coming soon");
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-[color:var(--surface-hover)]"
+            >
+              <Users className="h-4 w-4 text-indigo-500" />
+              <span>Live collaboration</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleFindOnCanvas();
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 transition hover:bg-[color:var(--surface-hover)]"
+            >
+              <Search className="h-4 w-4 text-indigo-500" />
+              <span>Find on canvas</span>
+              <span className="ml-auto text-[11px] text-[color:var(--text-faint)]">
+                ⌘F
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleResetCanvas();
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 text-red-500 transition hover:bg-red-50"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span>Reset the canvas</span>
+            </button>
+          </div>
+
+          <div className="my-4 h-px bg-[color:var(--border)]" />
+
+          <div>
+            <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+              Theme
+            </p>
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
+              {[
+                { id: "light" as const, label: "Light", icon: Sun },
+                { id: "dark" as const, label: "Dark", icon: Moon },
+                { id: "system" as const, label: "System", icon: Monitor },
+              ].map((option) => {
+                const Icon = option.icon;
+                const isActive = theme === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-label={option.label}
+                    aria-pressed={isActive}
+                    onClick={() => setTheme(option.id)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                      isActive
+                        ? "bg-indigo-500 text-white shadow-[0_8px_20px_rgba(79,70,229,0.35)]"
+                        : "text-[color:var(--text-primary)] hover:bg-[color:var(--surface-hover)]"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="my-4 h-px bg-[color:var(--border)]" />
+
+          <div>
+            <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+              Follow us
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 px-1 text-xs text-[color:var(--text-muted)]">
+              {[
+                {
+                  label: "Twitter / X",
+                  icon: IconX,
+                  href: "https://x.com/themooodyapp",
+                },
+                {
+                  label: "YouTube",
+                  icon: IconYouTube,
+                  href: "https://www.youtube.com/channel/UCobkDMYmixMCRJMGMb7KtVw",
+                },
+                {
+                  label: "TikTok",
+                  icon: IconTikTok,
+                  href: "https://www.tiktok.com/@themooodyapp?lang=en",
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-[color:var(--surface-hover)]"
+                  >
+                    <Icon className="h-4 w-4 text-[color:var(--icon-muted)]" />
+                    <span>{item.label}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="relative flex min-h-[100svh] w-full flex-col pt-24 sm:pt-20">
         <div
           ref={canvasRef}
-          className="relative flex-1 overflow-hidden bg-white touch-none overscroll-none"
+          className="relative flex-1 overflow-hidden bg-[color:var(--canvas-bg)] touch-none overscroll-none"
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={handleCanvasPointerUp}
@@ -1247,9 +1611,22 @@ export default function MooodyBoard() {
             }}
           >
             <div className="relative min-h-[1px] min-w-[1px]">
+              {selectionRect && (
+                <div
+                  className="pointer-events-none absolute rounded-md border border-indigo-400/70 bg-indigo-400/10"
+                  style={{
+                    left: selectionRect.x,
+                    top: selectionRect.y,
+                    width: selectionRect.width,
+                    height: selectionRect.height,
+                  }}
+                />
+              )}
               {items.map((item) => {
-                const isSelected = selectedId === item.id;
+                const isSelected = selectedIds.includes(item.id);
                 const isEditing = editingId === item.id;
+                const showOutline = isSelected && !isEditing;
+                const showHandles = showOutline && selectedIds.length === 1;
                 const scaleX = item.scaleX ?? 1;
                 const scaleY = item.scaleY ?? 1;
                 const rotation = item.rotation ?? 0;
@@ -1279,11 +1656,11 @@ export default function MooodyBoard() {
                     <div
                       key={item.id}
                       {...baseEvents}
-                      onContextMenu={(event) =>
-                        handleItemContextMenu(event, item.id)
-                      }
-                      onDoubleClick={() => handleTextDoubleClick(item.id)}
-                      className={`absolute select-none whitespace-nowrap rounded-md px-2 py-1 text-base font-semibold text-[#111827] ${
+                        onContextMenu={(event) =>
+                          handleItemContextMenu(event, item.id)
+                        }
+                        onDoubleClick={() => handleTextDoubleClick(item.id)}
+                      className={`absolute select-none whitespace-nowrap rounded-md px-2 py-1 text-base font-semibold text-[color:var(--text-primary)] ${
                         item.locked ? "cursor-not-allowed" : "cursor-text"
                       }`}
                       style={baseStyle}
@@ -1309,79 +1686,83 @@ export default function MooodyBoard() {
                         {item.text}
                       </div>
                       {item.locked && (
-                        <span className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow-md">
-                          <Lock className="h-3 w-3 text-[#4b5563]" />
+                        <span className="absolute -right-2 -top-2 rounded-full bg-[color:var(--surface)] p-1 shadow-md">
+                          <Lock className="h-3 w-3 text-[color:var(--text-secondary)]" />
                         </span>
                       )}
-                      {isSelected && !isEditing && (
+                      {showOutline && (
                         <div className="absolute inset-0">
                           <div className="pointer-events-none absolute inset-0 rounded-md border border-indigo-400/80" />
-                          <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
-                            <button
-                              type="button"
-                              aria-label="Resize top left"
-                              onPointerDown={(event) =>
-                                handleResizeStart(event, item.id, "nw")
-                              }
-                              className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                              style={{
-                                transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                              }}
-                            />
-                          </span>
-                          <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2">
-                            <button
-                              type="button"
-                              aria-label="Resize top right"
-                              onPointerDown={(event) =>
-                                handleResizeStart(event, item.id, "ne")
-                              }
-                              className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                              style={{
-                                transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                              }}
-                            />
-                          </span>
-                          <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2">
-                            <button
-                              type="button"
-                              aria-label="Resize bottom left"
-                              onPointerDown={(event) =>
-                                handleResizeStart(event, item.id, "sw")
-                              }
-                              className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                              style={{
-                                transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                              }}
-                            />
-                          </span>
-                          <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2">
-                            <button
-                              type="button"
-                              aria-label="Resize bottom right"
-                              onPointerDown={(event) =>
-                                handleResizeStart(event, item.id, "se")
-                              }
-                              className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                              style={{
-                                transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                              }}
-                            />
-                          </span>
-                          <div className="pointer-events-none absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70" />
-                          <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%]">
-                            <button
-                              type="button"
-                              aria-label="Rotate"
-                              onPointerDown={(event) =>
-                                handleRotateStart(event, item.id)
-                              }
-                              className="h-3 w-3 rounded-full border border-indigo-400 bg-white"
-                              style={{
-                                transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                              }}
-                            />
-                          </span>
+                          {showHandles && (
+                            <>
+                              <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
+                                <button
+                                  type="button"
+                                  aria-label="Resize top left"
+                                  onPointerDown={(event) =>
+                                    handleResizeStart(event, item.id, "nw")
+                                  }
+                                  className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                  style={{
+                                    transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                  }}
+                                />
+                              </span>
+                              <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2">
+                                <button
+                                  type="button"
+                                  aria-label="Resize top right"
+                                  onPointerDown={(event) =>
+                                    handleResizeStart(event, item.id, "ne")
+                                  }
+                                  className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                  style={{
+                                    transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                  }}
+                                />
+                              </span>
+                              <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2">
+                                <button
+                                  type="button"
+                                  aria-label="Resize bottom left"
+                                  onPointerDown={(event) =>
+                                    handleResizeStart(event, item.id, "sw")
+                                  }
+                                  className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                  style={{
+                                    transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                  }}
+                                />
+                              </span>
+                              <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2">
+                                <button
+                                  type="button"
+                                  aria-label="Resize bottom right"
+                                  onPointerDown={(event) =>
+                                    handleResizeStart(event, item.id, "se")
+                                  }
+                                  className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                  style={{
+                                    transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                  }}
+                                />
+                              </span>
+                              <div className="pointer-events-none absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70" />
+                              <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%]">
+                                <button
+                                  type="button"
+                                  aria-label="Rotate"
+                                  onPointerDown={(event) =>
+                                    handleRotateStart(event, item.id)
+                                  }
+                                  className="h-3 w-3 rounded-full border border-indigo-400 bg-[color:var(--surface)]"
+                                  style={{
+                                    transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                  }}
+                                />
+                              </span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1395,7 +1776,7 @@ export default function MooodyBoard() {
                     onContextMenu={(event) =>
                       handleItemContextMenu(event, item.id)
                     }
-                    className={`absolute select-none rounded-xl bg-white ${
+                    className={`absolute select-none rounded-xl bg-[color:var(--surface)] ${
                       item.locked ? "cursor-not-allowed" : "cursor-grab"
                     }`}
                     style={baseStyle}
@@ -1407,96 +1788,118 @@ export default function MooodyBoard() {
                       draggable={false}
                     />
                     {item.locked && (
-                      <span className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow-md">
-                        <Lock className="h-3 w-3 text-[#4b5563]" />
+                      <span className="absolute -right-2 -top-2 rounded-full bg-[color:var(--surface)] p-1 shadow-md">
+                        <Lock className="h-3 w-3 text-[color:var(--text-secondary)]" />
                       </span>
                     )}
-                    {isSelected && (
+                    {showOutline && (
                       <div className="absolute inset-0">
                         <div className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/80" />
-                        <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
-                          <button
-                            type="button"
-                            aria-label="Resize top left"
-                            onPointerDown={(event) =>
-                              handleResizeStart(event, item.id, "nw")
-                            }
-                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                            style={{
-                              transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                            }}
-                          />
-                        </span>
-                        <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2">
-                          <button
-                            type="button"
-                            aria-label="Resize top right"
-                            onPointerDown={(event) =>
-                              handleResizeStart(event, item.id, "ne")
-                            }
-                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                            style={{
-                              transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                            }}
-                          />
-                        </span>
-                        <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2">
-                          <button
-                            type="button"
-                            aria-label="Resize bottom left"
-                            onPointerDown={(event) =>
-                              handleResizeStart(event, item.id, "sw")
-                            }
-                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                            style={{
-                              transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                            }}
-                          />
-                        </span>
-                        <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2">
-                          <button
-                            type="button"
-                            aria-label="Resize bottom right"
-                            onPointerDown={(event) =>
-                              handleResizeStart(event, item.id, "se")
-                            }
-                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-white"
-                            style={{
-                              transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                            }}
-                          />
-                        </span>
-                        <div className="pointer-events-none absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70" />
-                        <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%]">
-                          <button
-                            type="button"
-                            aria-label="Rotate"
-                            onPointerDown={(event) =>
-                              handleRotateStart(event, item.id)
-                            }
-                            className="h-3 w-3 rounded-full border border-indigo-400 bg-white"
-                            style={{
-                              transform: `scale(${handleScaleX}, ${handleScaleY})`,
-                            }}
-                          />
-                        </span>
+                        {showHandles && (
+                          <>
+                            <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
+                              <button
+                                type="button"
+                                aria-label="Resize top left"
+                                onPointerDown={(event) =>
+                                  handleResizeStart(event, item.id, "nw")
+                                }
+                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                style={{
+                                  transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                }}
+                              />
+                            </span>
+                            <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2">
+                              <button
+                                type="button"
+                                aria-label="Resize top right"
+                                onPointerDown={(event) =>
+                                  handleResizeStart(event, item.id, "ne")
+                                }
+                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                style={{
+                                  transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                }}
+                              />
+                            </span>
+                            <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2">
+                              <button
+                                type="button"
+                                aria-label="Resize bottom left"
+                                onPointerDown={(event) =>
+                                  handleResizeStart(event, item.id, "sw")
+                                }
+                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                style={{
+                                  transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                }}
+                              />
+                            </span>
+                            <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2">
+                              <button
+                                type="button"
+                                aria-label="Resize bottom right"
+                                onPointerDown={(event) =>
+                                  handleResizeStart(event, item.id, "se")
+                                }
+                            className="h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                                style={{
+                                  transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                }}
+                              />
+                            </span>
+                            <div className="pointer-events-none absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70" />
+                            <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%]">
+                              <button
+                                type="button"
+                                aria-label="Rotate"
+                                onPointerDown={(event) =>
+                                  handleRotateStart(event, item.id)
+                                }
+                            className="h-3 w-3 rounded-full border border-indigo-400 bg-[color:var(--surface)]"
+                                style={{
+                                  transform: `scale(${handleScaleX}, ${handleScaleY})`,
+                                }}
+                              />
+                            </span>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })}
+              {groupBounds && (
+                <div
+                  className="pointer-events-none absolute rounded-md border border-dashed border-indigo-400/80"
+                  style={{
+                    left: groupBounds.minX,
+                    top: groupBounds.minY,
+                    width: groupBounds.maxX - groupBounds.minX,
+                    height: groupBounds.maxY - groupBounds.minY,
+                  }}
+                >
+                  <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
+                  <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
+                  <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
+                  <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
+                  <div className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70" />
+                  <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%] h-3 w-3 rounded-full border border-indigo-400 bg-[color:var(--surface)]" />
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
 
       <div className="fixed bottom-24 left-4 z-30 flex flex-col-reverse gap-4 sm:bottom-6 sm:left-6 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex w-fit items-center gap-2 self-start rounded-full border border-black/10 bg-white px-2 py-1 text-[11px] font-semibold text-[#111827] shadow-md sm:self-auto sm:px-3 sm:py-2 sm:text-xs">
+        <div className="flex w-fit items-center gap-2 self-start rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 text-[11px] font-semibold text-[color:var(--text-primary)] shadow-md sm:self-auto sm:px-3 sm:py-2 sm:text-xs">
           <button
             type="button"
             aria-label="Zoom out"
             onClick={zoomOut}
-            className="flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-black/5"
+            className="flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-[color:var(--surface-hover)]"
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -1507,18 +1910,18 @@ export default function MooodyBoard() {
             type="button"
             aria-label="Zoom in"
             onClick={zoomIn}
-            className="flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-black/5"
+            className="flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-[color:var(--surface-hover)]"
           >
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex w-fit items-center gap-8 self-start rounded-full border border-black/10 bg-white px-1.5 py-1 text-[11px] font-semibold text-[#111827] shadow-md sm:self-auto sm:gap-2 sm:px-3 sm:py-2 sm:text-xs">
+        <div className="flex w-fit items-center gap-8 self-start rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-1.5 py-1 text-[11px] font-semibold text-[color:var(--text-primary)] shadow-md sm:self-auto sm:gap-2 sm:px-3 sm:py-2 sm:text-xs">
           <button
             type="button"
             aria-label="Undo"
             onClick={handleUndo}
             disabled={!canUndo}
-            className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-black/5 disabled:opacity-40 sm:h-7 sm:w-7"
+            className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40 sm:h-7 sm:w-7"
           >
             <Undo2 className="h-4 w-4" />
           </button>
@@ -1527,7 +1930,7 @@ export default function MooodyBoard() {
             aria-label="Redo"
             onClick={handleRedo}
             disabled={!canRedo}
-            className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-black/5 disabled:opacity-40 sm:h-7 sm:w-7"
+            className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40 sm:h-7 sm:w-7"
           >
             <Redo2 className="h-4 w-4" />
           </button>
@@ -1540,7 +1943,7 @@ export default function MooodyBoard() {
 
       {contextMenu && (
         <div
-          className="fixed z-[60] w-64 rounded-2xl border border-black/10 bg-white p-2 text-xs text-[#111827] shadow-[0_20px_60px_rgba(15,23,42,0.2)]"
+          className="fixed z-[60] w-64 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-2 text-xs text-[color:var(--text-primary)] shadow-[0_20px_60px_rgba(15,23,42,0.2)]"
           style={{
             left: menuPosition.x,
             top: menuPosition.y,
@@ -1548,29 +1951,43 @@ export default function MooodyBoard() {
           onPointerDown={(event) => event.stopPropagation()}
         >
           <div className="flex flex-col">
+            {(() => {
+              const hasContextSelection = contextMenu.targetIds.length > 0;
+              const hasSingleContext = contextMenu.targetIds.length === 1;
+              const unlockedItems = contextItems.filter((item) => !item.locked);
+              const hasUnlocked = unlockedItems.length > 0;
+              const allLocked =
+                contextItems.length > 0 &&
+                contextItems.every((item) => item.locked);
+              return (
+                <>
             <button
               type="button"
               onClick={() => {
-                handleCut(contextItem);
+                handleCut(contextItems);
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={!contextMenu.targetId || contextItem?.locked}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasUnlocked}
             >
               <span>Cut</span>
-              <span className="text-[10px] text-black/40">⌘X</span>
+              <span className="text-[10px] text-[color:var(--text-faint)]">
+                ⌘X
+              </span>
             </button>
             <button
               type="button"
               onClick={() => {
-                handleCopy(contextItem);
+                handleCopy(contextItems);
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={!contextMenu.targetId}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasContextSelection}
             >
               <span>Copy</span>
-              <span className="text-[10px] text-black/40">⌘C</span>
+              <span className="text-[10px] text-[color:var(--text-faint)]">
+                ⌘C
+              </span>
             </button>
             <button
               type="button"
@@ -1578,55 +1995,55 @@ export default function MooodyBoard() {
                 handlePaste();
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
               disabled={!clipboardRef.current?.length}
             >
               <span>Paste</span>
-              <span className="text-[10px] text-black/40">⌘V</span>
+              <span className="text-[10px] text-[color:var(--text-faint)]">
+                ⌘V
+              </span>
             </button>
-            <div className="my-2 h-px bg-black/10" />
+            <div className="my-2 h-px bg-[color:var(--border)]" />
             <button
               type="button"
               onClick={() => {
-                handleAddToLibrary(contextItem);
+                handleAddToLibrary(contextItems);
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={!contextMenu.targetId}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasContextSelection}
             >
               <span>Add to library</span>
-              <Library className="h-3.5 w-3.5 text-black/40" />
+              <Library className="h-3.5 w-3.5 text-[color:var(--text-faint)]" />
             </button>
-            <div className="my-2 h-px bg-black/10" />
+            <div className="my-2 h-px bg-[color:var(--border)]" />
             <button
               type="button"
               onClick={() => {
-                handleFlip(contextItem, "x");
+                handleFlip(contextItems, "x");
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={
-                !contextMenu.targetId ||
-                contextItem?.locked
-              }
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasUnlocked}
             >
               <span>Flip horizontal</span>
-              <span className="text-[10px] text-black/40">⇧H</span>
+              <span className="text-[10px] text-[color:var(--text-faint)]">
+                ⇧H
+              </span>
             </button>
             <button
               type="button"
               onClick={() => {
-                handleFlip(contextItem, "y");
+                handleFlip(contextItems, "y");
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={
-                !contextMenu.targetId ||
-                contextItem?.locked
-              }
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasUnlocked}
             >
               <span>Flip vertical</span>
-              <span className="text-[10px] text-black/40">⇧V</span>
+              <span className="text-[10px] text-[color:var(--text-faint)]">
+                ⇧V
+              </span>
             </button>
             <button
               type="button"
@@ -1634,62 +2051,63 @@ export default function MooodyBoard() {
                 handleAddLink(contextItem);
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={
-                !contextMenu.targetId ||
-                contextItem?.locked
-              }
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasSingleContext || contextItem?.locked}
             >
               <span>Add link</span>
-              <Link2 className="h-3.5 w-3.5 text-black/40" />
+              <Link2 className="h-3.5 w-3.5 text-[color:var(--text-faint)]" />
             </button>
-            <div className="my-2 h-px bg-black/10" />
+            <div className="my-2 h-px bg-[color:var(--border)]" />
             <button
               type="button"
               onClick={() => {
-                handleDuplicate(contextItem);
+                handleDuplicate(contextItems);
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={!contextMenu.targetId}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasContextSelection}
             >
               <span>Duplicate</span>
-              <CopyPlus className="h-3.5 w-3.5 text-black/40" />
+              <CopyPlus className="h-3.5 w-3.5 text-[color:var(--text-faint)]" />
             </button>
             <button
               type="button"
               onClick={() => {
-                handleToggleLock(contextItem);
+                handleToggleLock(contextItems);
                 setContextMenu(null);
               }}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-black/5 disabled:opacity-40"
-              disabled={!contextMenu.targetId}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={!hasContextSelection}
             >
-              <span>{contextItem?.locked ? "Unlock" : "Lock"}</span>
-              <Lock className="h-3.5 w-3.5 text-black/40" />
+              <span>{allLocked ? "Unlock" : "Lock"}</span>
+              <Lock className="h-3.5 w-3.5 text-[color:var(--text-faint)]" />
             </button>
-            <div className="my-2 h-px bg-black/10" />
+            <div className="my-2 h-px bg-[color:var(--border)]" />
             <button
               type="button"
               onClick={() => {
-                const item = contextItem;
-                if (item) {
-                  removeItem(item.id);
-                }
+                removeItems(
+                  contextItems
+                    .filter((item) => !item.locked)
+                    .map((item) => item.id),
+                );
                 setContextMenu(null);
               }}
               className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-red-500 transition hover:bg-red-50 disabled:opacity-40"
-              disabled={!contextMenu.targetId || contextItem?.locked}
+              disabled={!hasUnlocked}
             >
               <span>Delete</span>
               <Trash2 className="h-3.5 w-3.5" />
             </button>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
 
       {toastMessage && (
-        <div className="fixed left-1/2 top-20 z-[60] -translate-x-1/2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[#111827] shadow-md">
+        <div className="fixed left-1/2 top-20 z-[60] -translate-x-1/2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-xs font-semibold text-[color:var(--text-primary)] shadow-md">
           {toastMessage}
         </div>
       )}

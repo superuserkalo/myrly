@@ -1,10 +1,13 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 type PromptInputProps = {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
   showEdgeHighlights?: boolean;
+  variant?: "default" | "light";
 };
 
 const IconPlus = ({ className }: { className?: string }) => (
@@ -44,10 +47,26 @@ export default function PromptInput({
   className = "",
   inputClassName = "",
   showEdgeHighlights = false,
+  variant = "default",
 }: PromptInputProps) {
+  const variantStyles =
+    variant === "light"
+      ? ({
+          "--prompt-text": "#111827",
+          "--prompt-muted": "rgba(17, 24, 39, 0.55)",
+          "--prompt-button-bg": "rgba(15, 23, 42, 0.08)",
+          "--prompt-button-soft": "rgba(15, 23, 42, 0.05)",
+          "--prompt-button-hover": "rgba(15, 23, 42, 0.14)",
+          "--prompt-surface": "#ffffff",
+          "--prompt-border": "rgba(15, 23, 42, 0.18)",
+          "--prompt-shadow": "0 12px 28px rgba(15, 23, 42, 0.15)",
+        } as CSSProperties)
+      : undefined;
+
   return (
     <div
-      className={`relative flex items-center gap-2 rounded-2xl border border-border/70 bg-surface p-2 shadow-[0_12px_34px_rgba(0,0,0,0.45)] ${className}`}
+      className={`relative flex items-center gap-2 rounded-2xl border border-[color:var(--prompt-border)] bg-[color:var(--prompt-surface)] p-2 shadow-[var(--prompt-shadow)] ${className}`}
+      style={variantStyles}
     >
       {showEdgeHighlights && (
         <>
@@ -56,20 +75,20 @@ export default function PromptInput({
         </>
       )}
       <button
-        className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-muted transition hover:text-white"
+        className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-muted)] transition hover:text-[color:var(--prompt-text)]"
         aria-label="Add reference image"
         type="button"
       >
         <IconPlus className="h-5 w-5" />
       </button>
       <input
-        className={`h-11 flex-1 bg-transparent px-2 text-base text-white placeholder:text-muted focus:outline-none sm:text-base ${inputClassName}`}
+        className={`h-11 flex-1 bg-transparent px-2 text-base text-[color:var(--prompt-text)] placeholder:text-[color:var(--prompt-muted)] focus:outline-none sm:text-base ${inputClassName}`}
         placeholder={placeholder}
         type="text"
         aria-label="Describe your vision"
       />
       <button
-        className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20"
+        className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--prompt-button-bg)] text-[color:var(--prompt-text)] transition hover:bg-[color:var(--prompt-button-hover)]"
         aria-label="Generate mood board"
         type="button"
       >
