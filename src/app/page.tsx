@@ -519,7 +519,7 @@ export default function Home() {
           </section>
         </div>
 
-        <section className="mt-12 w-full max-w-4xl">
+        <section id="community" className="mt-12 w-full max-w-4xl">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-white sm:text-xl">
               From the Community
@@ -550,31 +550,116 @@ export default function Home() {
             </div>
           </div>
         </section>
+
       </main>
 
-      <footer className="relative z-10 mt-auto w-full border-t border-white/5 bg-black/40">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] text-xs text-white/40 md:flex-row md:items-center md:justify-between md:px-8 md:py-8">
-          <p>© 2026 Manifest OS. All rights reserved.</p>
-          <nav className="flex flex-wrap gap-x-5 gap-y-2">
-            <a className="transition hover:text-white" href="#">
-              Impressum
-            </a>
-            <a className="transition hover:text-white" href="/privacy">
-              Privacy
-            </a>
-            <a className="transition hover:text-white" href="#">
-              Terms
-            </a>
-            <a className="transition hover:text-white" href="/cookies">
-              Cookies
-            </a>
-            <a className="transition hover:text-white" href="#">
-              Refund
-            </a>
-            <a className="transition hover:text-white" href="#">
-              Support
-            </a>
-          </nav>
+      <footer className="relative z-10 mt-auto w-full border-t border-white/10 bg-black/50">
+        <div className="mx-auto w-full max-w-6xl px-5 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-8 md:px-8 md:pt-10">
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.35em] text-blue-300/80">
+                <span className="h-px w-10 bg-gradient-to-r from-blue-400/80 to-transparent" />
+                Manifest Club
+              </div>
+              <h2 className="text-xl font-semibold text-white sm:text-2xl">
+                Keep manifesting with us.
+              </h2>
+              <p className="text-sm text-muted">
+                Weekly prompts, community drops, and new rituals. No spam.
+              </p>
+              <form className="space-y-3">
+                <label className="sr-only" htmlFor="footer-email">
+                  Email address
+                </label>
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    id="footer-email"
+                    type="email"
+                    placeholder="you@email.com"
+                    className="h-11 w-full flex-1 rounded-full border border-white/15 bg-black/40 px-4 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-400/60"
+                  />
+                  <button
+                    type="submit"
+                    className="h-11 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-zinc-200"
+                  >
+                    Join
+                  </button>
+                </div>
+                <label className="flex items-start gap-2 text-[11px] text-white/60">
+                  <input
+                    type="checkbox"
+                    required
+                    className="mt-0.5 h-4 w-4 rounded border border-white/20 bg-black/40 text-blue-400"
+                  />
+                  <span>
+                    I agree to receive updates and accept the{" "}
+                    <a className="underline underline-offset-4" href="/privacy">
+                      Privacy Policy
+                    </a>
+                    .
+                  </span>
+                </label>
+              </form>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-3">
+              <div className="space-y-3 text-sm text-white/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+                  Company
+                </p>
+                <a className="block transition hover:text-white" href="#">
+                  About Us
+                </a>
+                <a className="block transition hover:text-white" href="#">
+                  Contact
+                </a>
+                <a className="block transition hover:text-white" href="#">
+                  Pricing
+                </a>
+                <a className="block transition hover:text-white" href="#">
+                  Refund
+                </a>
+              </div>
+              <div className="space-y-3 text-sm text-white/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+                  Legal
+                </p>
+                <a className="block transition hover:text-white" href="#">
+                  Impressum
+                </a>
+                <a className="block transition hover:text-white" href="#">
+                  Terms and Conditions
+                </a>
+                <a className="block transition hover:text-white" href="/privacy">
+                  Privacy
+                </a>
+                <a className="block transition hover:text-white" href="/cookies">
+                  Cookies
+                </a>
+              </div>
+              <div className="space-y-3 text-sm text-white/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+                  Explore
+                </p>
+                <a className="block transition hover:text-white" href="#">
+                  Affiliate Program
+                </a>
+                <a className="block transition hover:text-white" href="/quiz">
+                  Manifestation Quiz
+                </a>
+                <a className="block transition hover:text-white" href="#community">
+                  Community
+                </a>
+                <a className="block transition hover:text-white" href="#">
+                  FAQ
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-white/10 pt-4 text-[11px] text-white/40">
+            © 2026 Manifest OS. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>

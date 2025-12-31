@@ -24,11 +24,17 @@
 
   button {
     cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  a {
+    touch-action: manipulation;
   }
 
   button:disabled {
     cursor: not-allowed;
   }
+
 
   .font-display {
     font-family: var(--font-display), "Times New Roman", serif;
