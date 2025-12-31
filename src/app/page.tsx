@@ -559,13 +559,13 @@ export default function Home() {
             <a className="transition hover:text-white" href="#">
               Impressum
             </a>
-            <a className="transition hover:text-white" href="#">
+            <a className="transition hover:text-white" href="/privacy">
               Privacy
             </a>
             <a className="transition hover:text-white" href="#">
               Terms
             </a>
-            <a className="transition hover:text-white" href="#">
+            <a className="transition hover:text-white" href="/cookies">
               Cookies
             </a>
             <a className="transition hover:text-white" href="#">

@@ -191,50 +191,61 @@ const wealthOptions = [
 ];
 
 const inventoryOptions = [
-  "Stack of Cash",
-  "Passport",
-  "Matcha",
-  "Espresso",
-  "Luxury Watch",
   "Sports Car Keys",
+  "Luxury Watch",
   "Designer Bag",
-  "Fresh Flowers",
-  "Books",
+  "Stack of Cash",
   "Champagne",
-  "Camera",
-  "Laptop",
-  "Meditation Cushion",
-  "Plane Ticket",
-  "Vision Board",
-  "Journal",
-  "Skincare Set",
-  "Noise Canceling Headphones",
-  "Guitar",
-  "Yoga Mat",
-  "City Map",
-  "Boarding Pass",
-  "Sun Hat",
-  "Sneakers",
-  "Art Print",
-  "Laptop Stickers",
-  "Gourmet Coffee",
-  "Vinyl Record",
-  "Sketchbook",
-  "House Keys",
-  "Plant",
-  "Gold Pen",
+  "Passport",
   "Suitcase",
-  "Silk Robe",
-  "Travel Journal",
+  "Car Keys",
+  "Smartwatch",
+  "Laptop",
+  "Camera",
+  "Headphones",
   "Perfume",
   "Sunglasses",
-  "Film Camera",
-  "Headphones",
-  "Tennis Racket",
-  "Coffee Cup",
-  "Makeup Bag",
+  "Silk Scarf",
+  "Handbag",
   "Ring",
+  "Earrings",
+  "Bracelet",
+  "Plane Ticket",
+  "Backpack",
+  "Espresso",
+  "Coffee",
+  "Matcha",
+  "Water Bottle",
+  "Art Print",
+  "Books",
+  "Journal",
+  "Notebook",
   "Planner",
+  "Art Supplies",
+  "Sketchbook",
+  "Paint Brush",
+  "Guitar",
+  "Vinyl Record",
+  "Microphone",
+  "Chess Set",
+  "Roller Skates",
+  "Tennis Racket",
+  "Running Shoes",
+  "Hiking Boots",
+  "Sneakers",
+  "Gym Bag",
+  "Gym Towel",
+  "Wristband",
+  "Tote Bag",
+  "Canvas Bag",
+  "Yoga Mat",
+  "Yoga Blocks",
+  "Yoga Strap",
+  "Incense",
+  "Crystal",
+  "Fresh Flowers",
+  "Plant",
+  "Concert Ticket",
 ];
 
 const povOptions = [
@@ -284,6 +295,10 @@ export default function ManifestationQuiz() {
   );
   const [synthesisIndex, setSynthesisIndex] = useState(0);
   const [showGate, setShowGate] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [showAllInventory, setShowAllInventory] = useState(false);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [suggestionText, setSuggestionText] = useState("");
   const [selections, setSelections] = useState<Selections>({
     calibration: {
       firstName: "",
@@ -362,6 +377,9 @@ export default function ManifestationQuiz() {
   const progress = ((currentStep + 1) / totalSteps) * 100;
   const canNext = stepValidations[currentStep];
   const isLastStep = currentStep === totalSteps - 1;
+  const visibleInventory = showAllInventory
+    ? inventoryOptions
+    : inventoryOptions.slice(0, 7);
 
   const handleBack = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
@@ -410,6 +428,28 @@ export default function ManifestationQuiz() {
     };
   }, [phase]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 12);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!showSuggestionModal) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSuggestionModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showSuggestionModal]);
+
   if (phase === "synthesis") {
     return (
       <div className="relative min-h-[100svh] bg-black text-foreground">
@@ -436,7 +476,13 @@ export default function ManifestationQuiz() {
         <div className="absolute left-1/2 -top-[200px] h-[520px] w-[90vw] max-w-3xl -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_rgba(15,23,42,0)_70%)] blur-[120px] sm:-top-[260px] sm:h-[600px]" />
       </div>
 
-      <header className="fixed left-0 right-0 top-0 z-30 w-full border-b border-transparent bg-transparent">
+      <header
+        className={`fixed left-0 right-0 top-0 z-30 w-full border-b transition-colors ${
+          isScrolled
+            ? "border-white/10 bg-black/70 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur"
+            : "border-transparent bg-transparent"
+        }`}
+      >
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 md:px-8">
           <a
             href="/"
@@ -467,9 +513,9 @@ export default function ManifestationQuiz() {
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              <div className="h-1 w-full rounded-full bg-white/10">
+              <div className="h-2 w-full rounded-full bg-white/10">
                 <div
-                  className="h-full rounded-full bg-white/70 transition-all"
+                  className="h-full rounded-full bg-blue-400/80 shadow-[0_0_14px_rgba(59,130,246,0.5)] transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -686,7 +732,7 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleSingle("shadowWork", option.id)}
                           className={`rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-white/60 bg-white/10"
+                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
                               : "border-border bg-surface hover:border-white/30"
                           }`}
                         >
@@ -719,7 +765,7 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleSingle("emotionalGoal", goal.id)}
                           className={`rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-white/60 bg-white/10"
+                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
                               : "border-border bg-surface hover:border-white/30"
                           }`}
                         >
@@ -758,7 +804,7 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleMulti("aesthetic", option.id, 2)}
                           className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
                             isSelected
-                              ? "border-white/60 bg-white/10 text-white"
+                              ? "border-blue-400/70 bg-white/5 text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]"
                               : "border-border bg-surface text-muted hover:border-white/30 hover:text-white"
                           }`}
                         >
@@ -798,7 +844,7 @@ export default function ManifestationQuiz() {
                           }
                           className={`rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-white/60 bg-white/10"
+                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
                               : "border-border bg-surface hover:border-white/30"
                           }`}
                         >
@@ -828,7 +874,7 @@ export default function ManifestationQuiz() {
                     {selections.inventory.length}/3 Selected
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
-                    {inventoryOptions.map((item) => {
+                    {visibleInventory.map((item) => {
                       const isSelected = selections.inventory.includes(item);
                       return (
                         <button
@@ -846,6 +892,27 @@ export default function ManifestationQuiz() {
                       );
                     })}
                   </div>
+                  {inventoryOptions.length > 7 && (
+                    <div className="mt-4 flex flex-col items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowSuggestionModal(true)}
+                        className="text-left text-xs font-semibold text-blue-400 transition hover:text-blue-300"
+                      >
+                        No words you like? Share your suggestion with us.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowAllInventory((prev) => !prev)
+                        }
+                        aria-expanded={showAllInventory}
+                        className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:border-white/35 hover:text-white"
+                      >
+                        {showAllInventory ? "Show less" : "Show all"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -870,7 +937,7 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleSingle("pov", option.id)}
                           className={`flex h-full flex-col gap-2 rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-white/45 bg-white/10"
+                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
                               : "border-border bg-surface hover:border-white/30"
                           }`}
                         >
@@ -1037,6 +1104,70 @@ export default function ManifestationQuiz() {
           </div>
         )}
       </main>
+
+      {showSuggestionModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setShowSuggestionModal(false)}
+          aria-hidden="true"
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-black/85 p-6 text-white shadow-[0_40px_120px_rgba(0,0,0,0.6)] backdrop-blur"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+                  Suggest a word
+                </p>
+                <p className="mt-2 text-sm text-white/70">
+                  Share a word or object that fits your manifestation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSuggestionModal(false)}
+                aria-label="Close"
+                className="rounded-full border border-white/15 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-6">
+              <label
+                htmlFor="inventory-suggestion"
+                className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60"
+              >
+                Suggested word
+              </label>
+              <input
+                id="inventory-suggestion"
+                value={suggestionText}
+                onChange={(event) => setSuggestionText(event.target.value)}
+                className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+                placeholder="e.g. Pearl earrings"
+                type="text"
+                autoComplete="off"
+              />
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSuggestionText("");
+                  setShowSuggestionModal(false);
+                }}
+                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/60 disabled:hover:bg-white/20"
+                disabled={suggestionText.trim().length === 0}
+              >
+                Send suggestion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showGate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
