@@ -488,8 +488,8 @@ export default function ManifestationQuiz() {
             href="/"
             className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em]"
           >
-            <span className="text-white">Manifest</span>
-            <span className="font-light text-muted">OS</span>
+            <span className="font-light text-muted">The</span>
+            <span className="text-white">Mooody</span>
           </a>
           <a
             href="/"

@@ -14,7 +14,7 @@ export default function CookiesPage() {
 
         <section className="space-y-4 text-sm text-white/80">
           <p>
-            This Cookie Policy explains how Manifest OS uses cookies and
+            This Cookie Policy explains how The Mooody uses cookies and
             similar technologies.
           </p>
 

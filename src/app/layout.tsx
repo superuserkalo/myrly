@@ -15,8 +15,8 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Manifest OS",
-  description: "Vision and mood board generator for manifesting your reality.",
+  title: "The Mooody",
+  description: "The Mooody is a vision and mood board generator for your next reality.",
 };
 
 export default function RootLayout({

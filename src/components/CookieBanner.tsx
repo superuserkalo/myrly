@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 type ConsentStatus = "accepted" | "declined" | "custom";
 
-const CONSENT_KEY = "manifest-cookie-consent";
-const ANALYTICS_KEY = "manifest-cookie-analytics";
+const CONSENT_KEY = "mooody-cookie-consent";
+const ANALYTICS_KEY = "mooody-cookie-analytics";
 
 const dispatchConsentEvent = (analytics: boolean) => {
   if (typeof window === "undefined") {
@@ -55,7 +55,7 @@ export default function CookieBanner() {
                 We respect your privacy.
               </p>
               <p>
-                We use essential cookies to keep Manifest OS secure. With your
+                We use essential cookies to keep The Mooody secure. With your
                 permission, we also use analytics to improve the experience.
               </p>
               <div className="flex flex-wrap gap-3 text-xs text-white/60">
@@ -133,7 +133,7 @@ export default function CookieBanner() {
                 <div>
                   <p className="text-sm font-semibold text-white">Analytics</p>
                   <p className="text-xs text-white/50">
-                    Help us improve Manifest OS.
+                    Help us improve The Mooody.
                   </p>
                 </div>
                 <button

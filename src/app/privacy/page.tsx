@@ -14,7 +14,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-4 text-sm text-white/80">
           <p>
-            This Privacy Policy explains how Manifest OS collects, uses, and
+            This Privacy Policy explains how The Mooody collects, uses, and
             protects your personal data.
           </p>
 
@@ -96,7 +96,7 @@ export default function PrivacyPage() {
               <li>Withdraw consent at any time.</li>
             </ul>
             <p className="mt-2">
-              Contact us at hello@manifestos.app to exercise your rights.
+              Contact us at hello@themooody.com to exercise your rights.
             </p>
           </div>
 

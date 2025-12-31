@@ -2,9 +2,28 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import PromptInput from "@/components/PromptInput";
 
-const headlineText = "Manifest Your Reality\u00A0";
-const headlineChars = Array.from(headlineText);
+const headlinePrefix = "Manifest Your";
+const headlineWords = [
+  "Reality",
+  "Life",
+  "Vision",
+  "Ideas",
+  "Mood",
+  "Future",
+  "Legacy",
+];
+const maxHeadlineWordLength =
+  Math.max(...headlineWords.map((word) => word.length)) + 1;
+const isFeatureEnabled = (value?: string) => value === "true" || value === "1";
+const settingsFeatureFlags = {
+  layout: isFeatureEnabled(process.env.NEXT_PUBLIC_SHOW_LAYOUT_STRUCTURE),
+  aspectRatio: isFeatureEnabled(process.env.NEXT_PUBLIC_SHOW_ASPECT_RATIO),
+  aestheticStyle: isFeatureEnabled(
+    process.env.NEXT_PUBLIC_SHOW_AESTHETIC_STYLE,
+  ),
+};
 
 const layoutOptions = [
   { label: "Single", icon: "single", active: false },
@@ -80,22 +99,6 @@ const IconPlus = ({ className }: { className?: string }) => (
   >
     <path d="M12 5v14" />
     <path d="M5 12h14" />
-  </svg>
-);
-
-const IconArrow = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M5 12h14" />
-    <path d="M13 6l6 6-6 6" />
   </svg>
 );
 
@@ -198,9 +201,42 @@ export default function Home() {
   const [aspectSelection, setAspectSelection] = useState("");
   const [paletteSelection, setPaletteSelection] = useState("");
   const [styleSelection, setStyleSelection] = useState("");
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [typedIndex, setTypedIndex] = useState(0);
-  const [typingDone, setTypingDone] = useState(false);
+  const [typingPhase, setTypingPhase] = useState<
+    "typing" | "pausing" | "deleting"
+  >("typing");
+  const [introComplete, setIntroComplete] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const activeWord = headlineWords[currentWordIndex];
+  const activeWordChars = Array.from(`${activeWord} `);
+  const prefixChars = Array.from(`${headlinePrefix} `);
+  const introLength = prefixChars.length + activeWordChars.length;
+  const maxHeadlineLength =
+    headlinePrefix.length + 1 + maxHeadlineWordLength;
+  const settingsCount = Object.values(settingsFeatureFlags).filter(Boolean)
+    .length;
+  const settingsSpanClass =
+    settingsCount === 1
+      ? "lg:col-span-12"
+      : settingsCount === 2
+        ? "lg:col-span-6"
+        : "lg:col-span-4";
+  const safeTypedIndex = Math.min(
+    typedIndex,
+    Math.max(activeWordChars.length - 1, 0),
+  );
+  const headlineLabel = `${headlinePrefix} ${activeWord}`;
+  const shouldBlink =
+    !reduceMotion &&
+    typingPhase === "pausing" &&
+    (introComplete
+      ? safeTypedIndex === activeWordChars.length - 1
+      : typedIndex === introLength - 1);
+  const caretIndex = introComplete
+    ? prefixChars.length + safeTypedIndex
+    : typedIndex;
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -208,32 +244,78 @@ export default function Home() {
     ).matches;
 
     if (prefersReducedMotion) {
-      setTypedIndex(headlineChars.length - 1);
-      setTypingDone(true);
+      setReduceMotion(true);
+      setTypedIndex(headlineWords[0].length);
+      setTypingPhase("pausing");
+      setIntroComplete(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) {
       return;
     }
 
-    let index = 0;
-    let timeoutId: number;
-    const startDelay = 300;
-    const stepDelay = 90;
+    let timeoutId: number | undefined;
+    const typeDelay = 90;
+    const deleteDelay = 50;
+    const pauseDelay = 900;
+    const endDelay = 500;
 
-    const step = () => {
-      setTypedIndex(index);
-      if (index >= headlineChars.length - 1) {
-        setTypingDone(true);
-        return;
+    if (!introComplete) {
+      if (typedIndex < introLength - 1) {
+        timeoutId = window.setTimeout(() => {
+          setTypedIndex((prev) => prev + 1);
+        }, typeDelay);
+      } else {
+        timeoutId = window.setTimeout(() => {
+          setIntroComplete(true);
+          setTypingPhase("pausing");
+          setTypedIndex(activeWordChars.length - 1);
+        }, endDelay);
       }
-      index += 1;
-      timeoutId = window.setTimeout(step, stepDelay);
-    };
-
-    timeoutId = window.setTimeout(step, startDelay);
+    } else if (typingPhase === "typing") {
+      if (typedIndex < activeWordChars.length - 1) {
+        timeoutId = window.setTimeout(() => {
+          setTypedIndex((prev) => prev + 1);
+        }, typeDelay);
+      } else {
+        timeoutId = window.setTimeout(() => {
+          setTypingPhase("pausing");
+        }, endDelay);
+      }
+    } else if (typingPhase === "pausing") {
+      timeoutId = window.setTimeout(() => {
+        setTypingPhase("deleting");
+      }, pauseDelay);
+    } else if (typingPhase === "deleting") {
+      if (typedIndex > 0) {
+        timeoutId = window.setTimeout(() => {
+          setTypedIndex((prev) => prev - 1);
+        }, deleteDelay);
+      } else {
+        timeoutId = window.setTimeout(() => {
+          setCurrentWordIndex(
+            (prev) => (prev + 1) % headlineWords.length,
+          );
+          setTypingPhase("typing");
+        }, 180);
+      }
+    }
 
     return () => {
-      window.clearTimeout(timeoutId);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
     };
-  }, []);
+  }, [
+    activeWordChars.length,
+    introComplete,
+    introLength,
+    reduceMotion,
+    typedIndex,
+    typingPhase,
+  ]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -266,8 +348,8 @@ export default function Home() {
             href="/"
             className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] transition hover:text-white"
           >
-            <span>Manifest</span>
-            <span className="font-light text-muted">OS</span>
+            <span className="font-light text-muted">The</span>
+            <span className="text-white">Mooody</span>
           </a>
           <button
             type="button"
@@ -280,28 +362,52 @@ export default function Home() {
 
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pb-12 pt-20 md:px-8 sm:pb-16 sm:pt-24">
         <section className="w-full max-w-2xl text-center">
-          <h1 className="font-display text-4xl leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            <span
-              className="typewriter"
-              aria-label={headlineText.trimEnd()}
-            >
-              {headlineChars.map((char, index) => {
-                const isVisible = index <= typedIndex;
-                const isCaret = index === typedIndex;
-                return (
-                  <span
-                    key={`${char}-${index}`}
-                    aria-hidden="true"
-                    className={`typewriter-char ${
-                      isVisible ? "is-visible" : "is-hidden"
-                    } ${isCaret ? "is-caret" : ""} ${
-                      isCaret && typingDone ? "is-caret-blink" : ""
-                    }`}
-                  >
-                    {char}
-                  </span>
-                );
-              })}
+          <h1
+            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl lg:text-6xl"
+            aria-label={headlineLabel}
+          >
+            <span aria-hidden="true">
+              <span
+                className="typewriter justify-center"
+                style={{ minWidth: `${maxHeadlineLength}ch` }}
+                aria-hidden="true"
+              >
+                {prefixChars.map((char, index) => {
+                  const isVisible = introComplete || index <= typedIndex;
+                  const isCaret = caretIndex === index;
+                  return (
+                    <span
+                      key={`prefix-${char}-${index}`}
+                      className={`typewriter-char ${
+                        isVisible ? "is-visible" : "is-hidden"
+                      } ${isCaret ? "is-caret" : ""} ${
+                        isCaret && shouldBlink ? "is-caret-blink" : ""
+                      }`}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+                {activeWordChars.map((char, index) => {
+                  const globalIndex = prefixChars.length + index;
+                  const isVisible = introComplete
+                    ? index <= safeTypedIndex
+                    : globalIndex <= typedIndex;
+                  const isCaret = caretIndex === globalIndex;
+                  return (
+                    <span
+                      key={`word-${char}-${index}`}
+                      className={`typewriter-char ${
+                        isVisible ? "is-visible" : "is-hidden"
+                      } ${isCaret ? "is-caret" : ""} ${
+                        isCaret && shouldBlink ? "is-caret-blink" : ""
+                      }`}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+              </span>
             </span>
           </h1>
           <p className="mt-3 text-sm text-muted sm:text-base">
@@ -311,30 +417,7 @@ export default function Home() {
 
         <div className="relative mt-8 w-full max-w-2xl">
           <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-blue-500/28 via-indigo-500/17 to-sky-500/23 blur-lg" />
-          <div className="relative flex items-center gap-2 rounded-2xl border border-border/70 bg-surface p-2 shadow-[0_12px_34px_rgba(0,0,0,0.45)]">
-            <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-border/70 via-white/40 to-border/70" />
-            <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-border/70 via-white/35 to-border/70" />
-            <button
-              className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-muted transition hover:text-white"
-              aria-label="Add reference image"
-              type="button"
-            >
-              <IconPlus className="h-5 w-5" />
-            </button>
-            <input
-              className="h-11 flex-1 bg-transparent px-2 text-sm text-white placeholder:text-muted focus:outline-none sm:text-base"
-              placeholder="Describe your dream life to generate your vision board..."
-              type="text"
-              aria-label="Describe your vision"
-            />
-            <button
-              className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20"
-              aria-label="Generate mood board"
-              type="button"
-            >
-              <IconArrow className="h-5 w-5" />
-            </button>
-          </div>
+          <PromptInput showEdgeHighlights />
         </div>
         <div className="mt-4 flex w-full max-w-2xl justify-center text-center">
           <a
@@ -345,179 +428,203 @@ export default function Home() {
           </a>
         </div>
 
-        <div className="mt-10 grid w-full grid-cols-1 gap-6 sm:mt-12 sm:gap-10 lg:grid-cols-12 lg:gap-12">
-          <section className="lg:col-span-4 flex flex-col items-center text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-              Layout Structure
-            </p>
-            <div className="mt-3 flex w-full max-w-full justify-center gap-2 overflow-x-auto pb-1 sm:mt-4 sm:grid sm:max-w-[220px] sm:grid-cols-2 sm:gap-x-1 sm:gap-y-3 sm:overflow-visible sm:pb-0">
-              {layoutOptions.map((option) => {
-                const isActive = layoutSelection === option.label;
-                return (
-                  <button
-                    key={option.label}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() =>
-                      setLayoutSelection((prev) =>
-                        prev === option.label ? "" : option.label,
-                      )
-                    }
-                    className="group flex shrink-0 flex-col items-center gap-2 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2"
-                  >
-                    <span
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
-                        isActive
-                          ? "border-white/45 bg-white/15 text-white"
-                          : "border-border bg-surface text-muted group-hover:border-zinc-500 group-hover:bg-surface-strong group-hover:text-white"
-                      }`}
-                    >
-                      <IconLayout
-                        variant={option.icon as "single" | "grid" | "collage" | "bento"}
-                        className="h-6 w-6"
-                      />
-                    </span>
-                    <span
-                      className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
-                        isActive ? "text-white" : "text-muted group-hover:text-white"
-                      }`}
-                    >
-                      {option.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="lg:col-span-4 flex flex-col items-center text-center">
-            <div className="w-full max-w-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-                Aspect Ratio
-              </p>
-              <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-surface p-1 sm:mt-4">
-                {aspectRatios.map((ratio) => {
-                  const isActive = aspectSelection === ratio.label;
-                  return (
-                    <button
-                      key={ratio.label}
-                      type="button"
-                      aria-pressed={isActive}
-                      onClick={() =>
-                        setAspectSelection((prev) =>
-                          prev === ratio.label ? "" : ratio.label,
-                        )
-                      }
-                      className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
-                        isActive
-                          ? "bg-white/15 text-white"
-                          : "text-muted hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      {ratio.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-6 w-full max-w-md sm:mt-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-                Color Palette
-              </p>
-              <div className="mt-3 flex gap-3 overflow-x-auto pb-1 sm:mt-4 sm:grid sm:grid-cols-2 sm:gap-x-4 sm:gap-y-3 sm:overflow-visible sm:pb-0">
-                {palettePresets.map((palette) => {
-                  const isSelected = paletteSelection === palette.id;
-                  const sortedColors = sortByLuminance(palette.colors);
-                  return (
-                    <button
-                      key={palette.id}
-                      type="button"
-                      aria-pressed={isSelected}
-                      onClick={() =>
-                        setPaletteSelection((prev) =>
-                          prev === palette.id ? "" : palette.id,
-                        )
-                      }
-                      className={`group relative flex w-[160px] shrink-0 items-center justify-center border-b border-transparent pb-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2 sm:w-full sm:shrink ${
-                        isSelected
-                          ? "border-primary/60 text-white"
-                          : "text-muted hover:border-white/20 hover:text-white"
-                      }`}
-                    >
-                      <div className="flex flex-1 items-center gap-3 sm:relative sm:justify-center sm:gap-0">
-                        <div
-                          className={`flex -space-x-1.5 transition-all duration-300 sm:absolute sm:right-0 sm:max-w-0 sm:translate-x-3 sm:overflow-hidden sm:opacity-0 sm:group-hover:max-w-[140px] sm:group-hover:translate-x-0 sm:group-hover:opacity-100 ${
-                            isSelected
-                              ? "sm:max-w-[140px] sm:translate-x-0 sm:opacity-100"
-                              : ""
-                          }`}
-                        >
-                          {sortedColors.map((color, index) => (
-                            <span
-                              key={`${palette.id}-dot-${index}`}
-                              className={`inline-block h-5 w-5 shrink-0 rounded-full border border-black/40 transition-all duration-300 sm:scale-90 sm:opacity-0 sm:group-hover:scale-100 sm:group-hover:opacity-100 ${
-                                isSelected ? "sm:scale-100 sm:opacity-100" : ""
-                              }`}
-                              style={{
-                                backgroundColor: color,
-                                transitionDelay: `${index * 60}ms`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <span
-                          className={`text-sm font-semibold transition-transform sm:group-hover:-translate-x-6 ${
-                            isSelected ? "sm:-translate-x-6" : ""
-                          }`}
-                        >
-                          {palette.name}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <section className="lg:col-span-4 flex flex-col items-center text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-              Aesthetic Style
-            </p>
-            <div className="mt-3 flex w-full items-center gap-2 overflow-x-auto pb-1 sm:mt-4 sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0">
-              {aestheticStyles.map((style) => {
-                const isActive = styleSelection === style.label;
-                return (
-                  <button
-                    key={style.label}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() =>
-                      setStyleSelection((prev) =>
-                        prev === style.label ? "" : style.label,
-                      )
-                    }
-                    className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                      isActive
-                        ? "border-white/45 bg-white/15 text-white"
-                        : "border-border bg-surface text-muted hover:border-zinc-500 hover:bg-surface-strong hover:text-white"
-                    }`}
-                  >
-                    {style.label}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                aria-label="Add aesthetic style"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border text-muted transition hover:border-zinc-500 hover:text-white"
+        {settingsCount > 0 && (
+          <div className="mt-10 grid w-full grid-cols-1 gap-6 sm:mt-12 sm:gap-10 lg:grid-cols-12 lg:gap-12">
+            {settingsFeatureFlags.layout && (
+              <section
+                className={`${settingsSpanClass} flex flex-col items-center text-center`}
               >
-                <IconPlus className="h-4 w-4" />
-              </button>
-            </div>
-          </section>
-        </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                  Layout Structure
+                </p>
+                <div className="mt-3 flex w-full max-w-full justify-center gap-2 overflow-x-auto pb-1 sm:mt-4 sm:grid sm:max-w-[220px] sm:grid-cols-2 sm:gap-x-1 sm:gap-y-3 sm:overflow-visible sm:pb-0">
+                  {layoutOptions.map((option) => {
+                    const isActive = layoutSelection === option.label;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        aria-pressed={isActive}
+                        onClick={() =>
+                          setLayoutSelection((prev) =>
+                            prev === option.label ? "" : option.label,
+                          )
+                        }
+                        className="group flex shrink-0 flex-col items-center gap-2 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2"
+                      >
+                        <span
+                          className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
+                            isActive
+                              ? "border-white/45 bg-white/15 text-white"
+                              : "border-border bg-surface text-muted group-hover:border-zinc-500 group-hover:bg-surface-strong group-hover:text-white"
+                          }`}
+                        >
+                          <IconLayout
+                            variant={
+                              option.icon as
+                                | "single"
+                                | "grid"
+                                | "collage"
+                                | "bento"
+                            }
+                            className="h-6 w-6"
+                          />
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                            isActive
+                              ? "text-white"
+                              : "text-muted group-hover:text-white"
+                          }`}
+                        >
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {settingsFeatureFlags.aspectRatio && (
+              <section
+                className={`${settingsSpanClass} flex flex-col items-center text-center`}
+              >
+                <div className="w-full max-w-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                    Aspect Ratio
+                  </p>
+                  <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-surface p-1 sm:mt-4">
+                    {aspectRatios.map((ratio) => {
+                      const isActive = aspectSelection === ratio.label;
+                      return (
+                        <button
+                          key={ratio.label}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() =>
+                            setAspectSelection((prev) =>
+                              prev === ratio.label ? "" : ratio.label,
+                            )
+                          }
+                          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
+                            isActive
+                              ? "bg-white/15 text-white"
+                              : "text-muted hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {ratio.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-6 w-full max-w-md sm:mt-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                    Color Palette
+                  </p>
+                  <div className="mt-3 flex gap-3 overflow-x-auto pb-1 sm:mt-4 sm:grid sm:grid-cols-2 sm:gap-x-4 sm:gap-y-3 sm:overflow-visible sm:pb-0">
+                    {palettePresets.map((palette) => {
+                      const isSelected = paletteSelection === palette.id;
+                      const sortedColors = sortByLuminance(palette.colors);
+                      return (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() =>
+                            setPaletteSelection((prev) =>
+                              prev === palette.id ? "" : palette.id,
+                            )
+                          }
+                          className={`group relative flex w-[160px] shrink-0 items-center justify-center border-b border-transparent pb-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2 sm:w-full sm:shrink ${
+                            isSelected
+                              ? "border-primary/60 text-white"
+                              : "text-muted hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          <div className="flex flex-1 items-center gap-3 sm:relative sm:justify-center sm:gap-0">
+                            <div
+                              className={`flex -space-x-1.5 transition-all duration-300 sm:absolute sm:right-0 sm:max-w-0 sm:translate-x-3 sm:overflow-hidden sm:opacity-0 sm:group-hover:max-w-[140px] sm:group-hover:translate-x-0 sm:group-hover:opacity-100 ${
+                                isSelected
+                                  ? "sm:max-w-[140px] sm:translate-x-0 sm:opacity-100"
+                                  : ""
+                              }`}
+                            >
+                              {sortedColors.map((color, index) => (
+                                <span
+                                  key={`${palette.id}-dot-${index}`}
+                                  className={`inline-block h-5 w-5 shrink-0 rounded-full border border-black/40 transition-all duration-300 sm:scale-90 sm:opacity-0 sm:group-hover:scale-100 sm:group-hover:opacity-100 ${
+                                    isSelected
+                                      ? "sm:scale-100 sm:opacity-100"
+                                      : ""
+                                  }`}
+                                  style={{
+                                    backgroundColor: color,
+                                    transitionDelay: `${index * 60}ms`,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <span
+                              className={`text-sm font-semibold transition-transform sm:group-hover:-translate-x-6 ${
+                                isSelected ? "sm:-translate-x-6" : ""
+                              }`}
+                            >
+                              {palette.name}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {settingsFeatureFlags.aestheticStyle && (
+              <section
+                className={`${settingsSpanClass} flex flex-col items-center text-center`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                  Aesthetic Style
+                </p>
+                <div className="mt-3 flex w-full items-center gap-2 overflow-x-auto pb-1 sm:mt-4 sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0">
+                  {aestheticStyles.map((style) => {
+                    const isActive = styleSelection === style.label;
+                    return (
+                      <button
+                        key={style.label}
+                        type="button"
+                        aria-pressed={isActive}
+                        onClick={() =>
+                          setStyleSelection((prev) =>
+                            prev === style.label ? "" : style.label,
+                          )
+                        }
+                        className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                          isActive
+                            ? "border-white/45 bg-white/15 text-white"
+                            : "border-border bg-surface text-muted hover:border-zinc-500 hover:bg-surface-strong hover:text-white"
+                        }`}
+                      >
+                        {style.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    aria-label="Add aesthetic style"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border text-muted transition hover:border-zinc-500 hover:text-white"
+                  >
+                    <IconPlus className="h-4 w-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+          </div>
+        )}
 
         <section id="community" className="mt-12 w-full max-w-4xl">
           <div className="flex items-center justify-between gap-4">
@@ -559,7 +666,7 @@ export default function Home() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.35em] text-blue-300/80">
                 <span className="h-px w-10 bg-gradient-to-r from-blue-400/80 to-transparent" />
-                Manifest Club
+                Mooody Club
               </div>
               <h2 className="text-xl font-semibold text-white sm:text-2xl">
                 Keep manifesting with us.
@@ -576,7 +683,7 @@ export default function Home() {
                     id="footer-email"
                     type="email"
                     placeholder="you@email.com"
-                    className="h-11 w-full flex-1 rounded-full border border-white/15 bg-black/40 px-4 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-400/60"
+                    className="h-11 w-full flex-1 rounded-full border border-white/15 bg-black/40 px-4 text-base text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-400/60"
                   />
                   <button
                     type="submit"
@@ -648,7 +755,7 @@ export default function Home() {
                   Manifestation Quiz
                 </a>
                 <a className="block transition hover:text-white" href="#community">
-                  Community
+                  Store
                 </a>
                 <a className="block transition hover:text-white" href="#">
                   FAQ
@@ -658,7 +765,7 @@ export default function Home() {
           </div>
 
           <div className="mt-6 border-t border-white/10 pt-4 text-[11px] text-white/40">
-            © 2026 Manifest OS. All rights reserved.
+            © 2026 The Mooody. All rights reserved.
           </div>
         </div>
       </footer>
