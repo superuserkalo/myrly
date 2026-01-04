@@ -1,11 +1,22 @@
 "use client";
 
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ArrowLeft,
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  ArrowUpToLine,
+  Code2,
+  Copy,
   CopyPlus,
+  Crop,
   FolderOpen,
   Hand,
-  ImagePlus,
   ImageDown,
+  ImagePlus,
   Library,
   Link2,
   Lock,
@@ -14,10 +25,12 @@ import {
   Monitor,
   Moon,
   MousePointer2,
+  PenLine,
   Plus,
   Redo2,
   RotateCcw,
   Save,
+  Scissors,
   Search,
   Share2,
   Sun,
@@ -28,6 +41,7 @@ import {
 } from "lucide-react";
 import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import PromptInput from "@/components/PromptInput";
 
 type Tool = "select" | "hand" | "text" | "image";
@@ -47,7 +61,14 @@ type CanvasItem =
       flipY?: boolean;
       link?: string;
       locked?: boolean;
+      opacity?: number;
+      edge?: "rounded" | "sharp";
+      isGenerating?: boolean;
       text: string;
+      textColor?: string;
+      fontFamily?: "hand" | "serif" | "mono" | "display";
+      fontSize?: "s" | "m" | "l" | "xl";
+      textAlign?: "left" | "center" | "right";
     }
   | {
       id: string;
@@ -63,12 +84,18 @@ type CanvasItem =
       flipY?: boolean;
       link?: string;
       locked?: boolean;
+      opacity?: number;
+      edge?: "rounded" | "sharp";
+      isGenerating?: boolean;
+      mimeType?: string;
       src: string;
     };
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 const toRadians = (deg: number) => (deg * Math.PI) / 180;
+const normalizeAngle = (rad: number) =>
+  Math.atan2(Math.sin(rad), Math.cos(rad));
 
 const createId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -132,10 +159,27 @@ const rectsIntersect = (
 
 export default function MooodyBoard() {
   const [activeTool, setActiveTool] = useState<Tool>("select");
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [promptValue, setPromptValue] = useState("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [hasPrompted, setHasPrompted] = useState(false);
+  const [isPromptFocused, setIsPromptFocused] = useState(false);
+  const [generationModel, setGenerationModel] = useState<
+    "gemini" | "zimage" | "grok" | "qwen" | "seedream"
+  >("gemini");
+  const [promptAttachments, setPromptAttachments] = useState<
+    Array<{
+      id: string;
+      url: string;
+      mimeType: string;
+      name?: string;
+      sourceSrc?: string;
+    }>
+  >([]);
+  const pendingAttachmentSrcsRef = useRef<Set<string>>(new Set());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -217,6 +261,12 @@ export default function MooodyBoard() {
     zoom: number;
     pan: { x: number; y: number };
   } | null>(null);
+  const touchTapRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
   const hasCentered = useRef(false);
 
   useEffect(() => {
@@ -297,11 +347,50 @@ export default function MooodyBoard() {
     return () => window.clearTimeout(timeout);
   }, [editingId]);
 
-  const measureTextSize = (text: string) => {
+  const resolveTextFontSize = (size?: "s" | "m" | "l" | "xl") => {
+    switch (size) {
+      case "s":
+        return 14;
+      case "l":
+        return 24;
+      case "xl":
+        return 32;
+      case "m":
+      default:
+        return 18;
+    }
+  };
+
+  const resolveTextFontFamily = (
+    family?: "hand" | "serif" | "mono" | "display",
+  ) => {
+    switch (family) {
+      case "serif":
+        return "var(--font-display)";
+      case "mono":
+        return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+      case "display":
+        return "var(--font-display)";
+      case "hand":
+      default:
+        return "var(--font-logo)";
+    }
+  };
+
+  const measureTextSize = (
+    text: string,
+    options?: {
+      fontSize?: "s" | "m" | "l" | "xl";
+      fontFamily?: "hand" | "serif" | "mono" | "display";
+    },
+  ) => {
     const measureEl = measureRef.current;
     if (!measureEl) {
       return { width: 140, height: 36 };
     }
+    measureEl.style.fontSize = `${resolveTextFontSize(options?.fontSize)}px`;
+    measureEl.style.fontFamily = resolveTextFontFamily(options?.fontFamily);
+    measureEl.style.lineHeight = "1.2";
     measureEl.textContent = text.trim() ? text : "Text";
     const rect = measureEl.getBoundingClientRect();
     return {
@@ -361,8 +450,10 @@ export default function MooodyBoard() {
         return;
       }
       if (modKey && key === "v") {
-        event.preventDefault();
-        handlePaste();
+        if (clipboardRef.current && clipboardRef.current.length > 0) {
+          event.preventDefault();
+          handlePaste();
+        }
         return;
       }
       if (modKey && key === "d") {
@@ -384,6 +475,30 @@ export default function MooodyBoard() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [editingId, selectedIds]);
+
+  useEffect(() => {
+    const handlePasteEvent = (event: ClipboardEvent) => {
+      const items = Array.from(event.clipboardData?.items ?? []);
+      const imageFiles = items
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => Boolean(file));
+      if (imageFiles.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      if (isPromptFocused) {
+        handleAddAttachments(imageFiles);
+        return;
+      }
+      const point = getCanvasCenterPoint();
+      addImageFilesToCanvas(imageFiles, point);
+    };
+    window.addEventListener("paste", handlePasteEvent);
+    return () => {
+      window.removeEventListener("paste", handlePasteEvent);
+    };
+  }, [pan, zoom, isPromptFocused, promptAttachments]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -517,6 +632,23 @@ export default function MooodyBoard() {
   const removeItems = (ids: string[]) => {
     if (ids.length === 0) {
       return;
+    }
+    const removedSources = new Set(
+      itemsRef.current
+        .filter((item) => ids.includes(item.id))
+        .map((item) => (item.type === "image" ? item.src : null))
+        .filter((src): src is string => Boolean(src)),
+    );
+    if (removedSources.size > 0) {
+      setPromptAttachments((prev) =>
+        prev.filter(
+          (attachment) =>
+            !attachment.sourceSrc || !removedSources.has(attachment.sourceSrc),
+        ),
+      );
+      removedSources.forEach((src) => {
+        pendingAttachmentSrcsRef.current.delete(src);
+      });
     }
     const nextItems = itemsRef.current.filter(
       (item) => !ids.includes(item.id),
@@ -653,6 +785,43 @@ export default function MooodyBoard() {
     updateItem(item.id, { link: nextLink.trim() || undefined });
   };
 
+  const handleRemoveBackground = async (
+    item: Extract<CanvasItem, { type: "image" }> | null,
+  ) => {
+    if (!item || item.locked || !item.src) {
+      return;
+    }
+    updateItemLive(item.id, { isGenerating: true });
+    try {
+      const imagePayload = await resolveImageForBackgroundRemoval(item.src);
+      const response = await fetch("/api/remove-background", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imagePayload }),
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(
+          errorPayload?.details ||
+            errorPayload?.error ||
+            "Background removal failed",
+        );
+      }
+      const data = await response.json();
+      if (!data?.image) {
+        throw new Error("No image returned");
+      }
+      updateItem(item.id, {
+        src: data.image,
+        isGenerating: false,
+        mimeType: getMimeFromDataUrl(data.image),
+      });
+    } catch (error) {
+      updateItemLive(item.id, { isGenerating: false });
+      showToast(error instanceof Error ? error.message : "Background removal failed");
+    }
+  };
+
   const handleAddToLibrary = (itemsToAdd: CanvasItem[]) => {
     if (itemsToAdd.length === 0) {
       return;
@@ -664,6 +833,320 @@ export default function MooodyBoard() {
     showToast(`Added to library (${libraryRef.current.length})`);
   };
 
+  const getCanvasCenterPoint = () => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return { x: 0, y: 0 };
+    }
+    return {
+      x: (rect.width / 2 - pan.x) / zoom,
+      y: (rect.height / 2 - pan.y) / zoom,
+    };
+  };
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const addImageFilesToCanvas = (
+    files: File[],
+    point: { x: number; y: number },
+  ) => {
+    if (files.length === 0) {
+      return;
+    }
+    setActiveTool("select");
+    const maxWidth = 360;
+    const offsetStep = 28;
+    const createItem = (file: File, index: number) =>
+      new Promise<CanvasItem | null>((resolve) => {
+        const url = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const width = img.width * scale;
+          const height = img.height * scale;
+          resolve({
+            id: createId(),
+            type: "image",
+            x: point.x + index * offsetStep,
+            y: point.y + index * offsetStep,
+            src: url,
+            width,
+            height,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+            opacity: 1,
+            edge: "rounded",
+            mimeType: file.type || "image/png",
+          });
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+
+    Promise.all(files.map(createItem)).then((nextItems) => {
+      const filtered = nextItems.filter(Boolean) as CanvasItem[];
+      if (filtered.length === 0) {
+        return;
+      }
+      commitHistory([...itemsRef.current, ...filtered]);
+      setSelectedIds(filtered.map((item) => item.id));
+      setEditingId(null);
+    });
+  };
+
+  const blobToDataUrl = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+  const getMimeFromDataUrl = (dataUrl: string) => {
+    const match = dataUrl.match(/^data:([^;]+);/);
+    return match?.[1] ?? "image/png";
+  };
+
+  const loadCanvasImageAsAttachment = async (
+    src: string,
+    mimeTypeHint?: string,
+  ) => {
+    if (src.startsWith("data:")) {
+      return { url: src, mimeType: mimeTypeHint || getMimeFromDataUrl(src) };
+    }
+    const response = await fetch(src);
+    if (!response.ok) {
+      throw new Error("Failed to load image");
+    }
+    const blob = await response.blob();
+    const url = await blobToDataUrl(blob);
+    return {
+      url,
+      mimeType: blob.type || mimeTypeHint || getMimeFromDataUrl(url),
+    };
+  };
+
+  const resolveImageForBackgroundRemoval = async (src: string) => {
+    if (src.startsWith("http://") || src.startsWith("https://")) {
+      return src;
+    }
+    if (src.startsWith("data:")) {
+      return src;
+    }
+    const response = await fetch(src);
+    if (!response.ok) {
+      throw new Error("Failed to load image");
+    }
+    const blob = await response.blob();
+    return blobToDataUrl(blob);
+  };
+
+  const addCanvasAttachments = async (
+    canvasItems: CanvasItem[],
+    options?: { showLimitToast?: boolean },
+  ) => {
+    const maxAttachments = 14;
+    if (canvasItems.length === 0) {
+      return;
+    }
+    if (promptAttachments.length >= maxAttachments) {
+      if (options?.showLimitToast) {
+        showToast("Max 14 reference images");
+      }
+      return;
+    }
+    const existingUrls = new Set(promptAttachments.map((item) => item.url));
+    const existingSources = new Set(
+      promptAttachments
+        .map((item) => item.sourceSrc)
+        .filter(Boolean) as string[],
+    );
+    const available = Math.max(0, maxAttachments - promptAttachments.length);
+    const candidates = canvasItems.filter((item) => {
+      if (item.type !== "image" || !item.src) {
+        return false;
+      }
+      if (pendingAttachmentSrcsRef.current.has(item.src)) {
+        return false;
+      }
+      if (existingSources.has(item.src)) {
+        return false;
+      }
+      if (item.src.startsWith("data:") && existingUrls.has(item.src)) {
+        return false;
+      }
+      return true;
+    });
+    if (candidates.length === 0 || available === 0) {
+      return;
+    }
+    const limited = candidates.slice(0, available);
+    limited.forEach((item) => {
+      if (item.src) {
+        pendingAttachmentSrcsRef.current.add(item.src);
+      }
+    });
+    try {
+      const entries = await Promise.all(
+        limited.map(async (item) => {
+          if (!item.src) {
+            return null;
+          }
+          try {
+            const { url, mimeType } = await loadCanvasImageAsAttachment(
+              item.src,
+              item.mimeType,
+            );
+            return {
+              id: createId(),
+              url,
+              mimeType,
+              name: "Canvas image",
+              sourceSrc: item.src,
+            };
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const nextEntries = entries.filter(Boolean) as Array<{
+        id: string;
+        url: string;
+        mimeType: string;
+        name: string;
+        sourceSrc: string;
+      }>;
+      if (nextEntries.length === 0) {
+        return;
+      }
+      setPromptAttachments((prev) => {
+        const updated = [...prev];
+        for (const entry of nextEntries) {
+          if (updated.length >= maxAttachments) {
+            break;
+          }
+          if (
+            !updated.some(
+              (item) =>
+                item.url === entry.url ||
+                (entry.sourceSrc && item.sourceSrc === entry.sourceSrc),
+            )
+          ) {
+            updated.push(entry);
+          }
+        }
+        return updated;
+      });
+    } finally {
+      limited.forEach((item) => {
+        if (item.src) {
+          pendingAttachmentSrcsRef.current.delete(item.src);
+        }
+      });
+    }
+  };
+
+  const addCanvasAttachmentsForIds = (
+    ids: string[],
+    options?: { showLimitToast?: boolean },
+  ) => {
+    if (ids.length === 0) {
+      return;
+    }
+    const targets = itemsRef.current.filter(
+      (item) => item.type === "image" && item.src && ids.includes(item.id),
+    );
+    void addCanvasAttachments(targets, options);
+  };
+
+  const buildQwenReferenceImage = async () => {
+    return promptAttachments[0]?.url ?? null;
+  };
+
+  const handleAddAttachments = async (files: File[]) => {
+    const maxAttachments = 14;
+    if (promptAttachments.length >= maxAttachments) {
+      showToast("Max 14 reference images");
+      return;
+    }
+    const remaining = Math.max(0, maxAttachments - promptAttachments.length);
+    const nextFiles = files.slice(0, remaining);
+    try {
+      const entries = await Promise.all(
+        nextFiles.map(async (file) => ({
+          id: createId(),
+          url: await fileToDataUrl(file),
+          mimeType: file.type || "image/png",
+          name: file.name,
+        })),
+      );
+      setPromptAttachments((prev) => [...prev, ...entries]);
+    } catch {
+      showToast("Failed to add photos");
+    }
+  };
+
+  const handleReplaceAttachment = async (id: string, file: File) => {
+    try {
+      const url = await fileToDataUrl(file);
+      setPromptAttachments((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                url,
+                mimeType: file.type || item.mimeType,
+                name: file.name,
+              }
+            : item,
+        ),
+      );
+    } catch {
+      showToast("Failed to replace photo");
+    }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setPromptAttachments((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const moveItemBy = (id: string, delta: number) => {
+    const currentItems = [...itemsRef.current];
+    const index = currentItems.findIndex((item) => item.id === id);
+    if (index === -1) {
+      return;
+    }
+    const nextIndex = clamp(index + delta, 0, currentItems.length - 1);
+    if (nextIndex === index) {
+      return;
+    }
+    const [moved] = currentItems.splice(index, 1);
+    currentItems.splice(nextIndex, 0, moved);
+    commitHistory(currentItems);
+  };
+
+  const moveItemTo = (id: string, position: "front" | "back") => {
+    const currentItems = [...itemsRef.current];
+    const index = currentItems.findIndex((item) => item.id === id);
+    if (index === -1) {
+      return;
+    }
+    const [moved] = currentItems.splice(index, 1);
+    if (position === "front") {
+      currentItems.push(moved);
+    } else {
+      currentItems.unshift(moved);
+    }
+    commitHistory(currentItems);
+  };
+
   const getCanvasPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) {
@@ -672,6 +1155,33 @@ export default function MooodyBoard() {
     const x = (event.clientX - rect.left - pan.x) / zoom;
     const y = (event.clientY - rect.top - pan.y) / zoom;
     return { x, y };
+  };
+
+  const getCanvasPointFromClient = (clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return { x: 0, y: 0 };
+    }
+    return {
+      x: (clientX - rect.left - pan.x) / zoom,
+      y: (clientY - rect.top - pan.y) / zoom,
+    };
+  };
+
+  const getScreenCenterForItem = (item: CanvasItem) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return { x: 0, y: 0 };
+    }
+    const scaleX = Math.abs(item.scaleX ?? 1);
+    const scaleY = Math.abs(item.scaleY ?? 1);
+    const centerX = item.x + (item.width * scaleX) / 2;
+    const centerY = item.y + (item.height * scaleY) / 2;
+    const { zoom: currentZoom, pan: currentPan } = viewRef.current;
+    return {
+      x: rect.left + centerX * currentZoom + currentPan.x,
+      y: rect.top + centerY * currentZoom + currentPan.y,
+    };
   };
 
   const handleCanvasPointerDown = (
@@ -688,10 +1198,19 @@ export default function MooodyBoard() {
         x: event.clientX,
         y: event.clientY,
       });
+      if (touchPointsRef.current.size === 1) {
+        touchTapRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          moved: false,
+        };
+      }
       if (touchPointsRef.current.size === 2) {
         const [first, second] = Array.from(
           touchPointsRef.current.values(),
         );
+        touchTapRef.current = null;
         const center = {
           x: (first.x + second.x) / 2,
           y: (first.y + second.y) / 2,
@@ -739,7 +1258,10 @@ export default function MooodyBoard() {
 
     if (activeTool === "text") {
       const point = getCanvasPoint(event);
-      const measured = measureTextSize("");
+      const measured = measureTextSize("", {
+        fontSize: "m",
+        fontFamily: "hand",
+      });
       const newItem: CanvasItem = {
         id: createId(),
         type: "text",
@@ -750,6 +1272,11 @@ export default function MooodyBoard() {
         scaleX: 1,
         scaleY: 1,
         rotation: 0,
+        textColor: "#111827",
+        fontFamily: "hand",
+        fontSize: "m",
+        textAlign: "left",
+        opacity: 1,
         text: "",
       };
       commitHistory([...itemsRef.current, newItem]);
@@ -802,6 +1329,7 @@ export default function MooodyBoard() {
         .filter((item) => rectsIntersect(nextRect, getItemBounds(item)))
         .map((item) => item.id);
       setSelectedIds(nextSelected);
+      addCanvasAttachmentsForIds(nextSelected);
       return;
     }
     if (event.pointerType === "touch") {
@@ -810,6 +1338,17 @@ export default function MooodyBoard() {
           x: event.clientX,
           y: event.clientY,
         });
+      }
+      if (touchTapRef.current?.pointerId === event.pointerId) {
+        const dx = event.clientX - touchTapRef.current.startX;
+        const dy = event.clientY - touchTapRef.current.startY;
+        if (Math.hypot(dx, dy) > 6) {
+          touchTapRef.current.moved = true;
+        }
+      }
+      if (touchTapRef.current?.moved && (selectedIds.length > 0 || editingId)) {
+        clearSelection();
+        setEditingId(null);
       }
       if (pinchRef.current && touchPointsRef.current.size >= 2) {
         event.preventDefault();
@@ -866,6 +1405,16 @@ export default function MooodyBoard() {
       if (touchPointsRef.current.size < 2) {
         pinchRef.current = null;
       }
+      if (
+        touchTapRef.current?.pointerId === event.pointerId &&
+        !touchTapRef.current.moved
+      ) {
+        clearSelection();
+        setEditingId(null);
+      }
+      if (touchTapRef.current?.pointerId === event.pointerId) {
+        touchTapRef.current = null;
+      }
     }
     if (selectionRef.current && event.pointerType !== "touch") {
       const point = getCanvasPoint(event);
@@ -886,6 +1435,7 @@ export default function MooodyBoard() {
         .filter((item) => rectsIntersect(rect, getItemBounds(item)))
         .map((item) => item.id);
       setSelectedIds(nextSelected);
+      addCanvasAttachmentsForIds(nextSelected);
       return;
     }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -929,10 +1479,18 @@ export default function MooodyBoard() {
     if (activeTool !== "select" || editingId === item.id) {
       return;
     }
+    if (event.pointerType === "touch") {
+      clearSelection();
+      setEditingId(null);
+    }
     const toggleKey = event.shiftKey || event.metaKey || event.ctrlKey;
     if (toggleKey) {
+      const willSelect = !selectedIds.includes(item.id);
       toggleSelection(item.id);
       setEditingId(null);
+      if (willSelect) {
+        addCanvasAttachmentsForIds([item.id], { showLimitToast: true });
+      }
       return;
     }
     const isAlreadySelected = selectedIds.includes(item.id);
@@ -940,6 +1498,7 @@ export default function MooodyBoard() {
     if (!isAlreadySelected) {
       setSelectedIds(selectionForDrag);
     }
+    addCanvasAttachmentsForIds(selectionForDrag, { showLimitToast: true });
     const draggableIds = selectionForDrag.filter(
       (id) => !getItemById(id)?.locked,
     );
@@ -1040,15 +1599,16 @@ export default function MooodyBoard() {
     if (!item || item.locked) {
       return;
     }
-    const scaleX = Math.abs(item.scaleX ?? 1);
-    const scaleY = Math.abs(item.scaleY ?? 1);
-    const centerX = item.x + (item.width * scaleX) / 2;
-    const centerY = item.y + (item.height * scaleY) / 2;
-    const angle = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const center = getScreenCenterForItem(item);
+    const angle = Math.atan2(
+      event.clientY - center.y,
+      event.clientX - center.x,
+    );
     rotateRef.current = {
       id: itemId,
-      centerX,
-      centerY,
+      centerX: center.x,
+      centerY: center.y,
       startAngle: angle,
       startRotation: item.rotation ?? 0,
     };
@@ -1118,7 +1678,7 @@ export default function MooodyBoard() {
           event.clientY - state.centerY,
           event.clientX - state.centerX,
         );
-        const delta = angle - state.startAngle;
+        const delta = normalizeAngle(angle - state.startAngle);
         let nextRotation = state.startRotation + (delta * 180) / Math.PI;
         if (event.shiftKey) {
           nextRotation = Math.round(nextRotation / 15) * 15;
@@ -1159,7 +1719,13 @@ export default function MooodyBoard() {
       removeItem(itemId);
       return;
     }
-    const measured = measureTextSize(nextText);
+    const current = getItemById(itemId);
+    const measured = measureTextSize(nextText, {
+      fontSize:
+        current?.type === "text" ? current.fontSize ?? "m" : "m",
+      fontFamily:
+        current?.type === "text" ? current.fontFamily ?? "hand" : "hand",
+    });
     const nextItems = itemsRef.current.map((item) =>
       item.id === itemId && item.type === "text"
         ? {
@@ -1175,36 +1741,144 @@ export default function MooodyBoard() {
   };
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    const point = pendingImagePoint.current;
-    if (!file || !point) {
+    const files = Array.from(event.target.files ?? []);
+    const point = pendingImagePoint.current ?? getCanvasCenterPoint();
+    pendingImagePoint.current = null;
+    addImageFilesToCanvas(files, point);
+
+    event.target.value = "";
+  };
+
+  const handleGenerateImage = async () => {
+    const prompt = promptValue.trim();
+    if (!prompt) {
+      showToast("Type a prompt first");
       return;
     }
-    const url = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.onload = () => {
-      const maxWidth = 360;
-      const scale = Math.min(1, maxWidth / img.width);
-      const width = img.width * scale;
-      const height = img.height * scale;
-      const newItem: CanvasItem = {
-        id: createId(),
-        type: "image",
-        x: point.x,
-        y: point.y,
-        src: url,
-        width,
-        height,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-      };
-      commitHistory([...itemsRef.current, newItem]);
-      selectOnly(newItem.id);
-      pendingImagePoint.current = null;
+    if (isGeneratingImage) {
+      return;
+    }
+    setIsGeneratingImage(true);
+    const center = getCanvasCenterPoint();
+    const width = 360;
+    const height = 480;
+    const placeholderId = createId();
+    const placeholder: CanvasItem = {
+      id: placeholderId,
+      type: "image",
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      width,
+      height,
+      src: "",
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      opacity: 1,
+      edge: "rounded",
+      isGenerating: true,
     };
-    img.src = url;
-    event.target.value = "";
+    commitHistory([...itemsRef.current, placeholder]);
+    selectOnly(placeholderId);
+
+    try {
+      const attachmentsPayload = promptAttachments
+        .map((attachment) => {
+          const parts = attachment.url.split(",");
+          if (parts.length < 2) {
+            return null;
+          }
+          return {
+            data: parts[1],
+            mimeType: attachment.mimeType,
+          };
+        })
+        .filter(Boolean);
+      const hasAttachments = promptAttachments.length > 0;
+      const useZImage = generationModel === "zimage" && !hasAttachments;
+      const useQwenEdit = generationModel === "zimage" && hasAttachments;
+      const useGrok = generationModel === "grok";
+      const useSeedream = generationModel === "seedream";
+      const useSeedreamText = useSeedream && !hasAttachments;
+      const useSeedreamEdit = useSeedream && hasAttachments;
+      const useQwenText = generationModel === "qwen" && !hasAttachments;
+      const useQwenImage = generationModel === "qwen" && hasAttachments;
+      const needsReferenceImage = useQwenImage || useSeedreamEdit;
+      const referenceImage = needsReferenceImage
+        ? await buildQwenReferenceImage()
+        : null;
+      if (needsReferenceImage && !referenceImage) {
+        throw new Error("No reference image provided");
+      }
+      const endpoint = useQwenImage
+        ? "/api/generate-qwen-image"
+        : useQwenText
+          ? "/api/generate-qwen"
+          : useSeedreamEdit
+            ? "/api/generate-seedream-edit"
+            : useSeedreamText
+              ? "/api/generate-seedream"
+            : useGrok
+              ? "/api/generate-grok"
+              : useZImage
+                ? "/api/generate-zimage"
+                : useQwenEdit
+                  ? "/api/generate-qwen-edit"
+                  : "/api/generate-image";
+      const payload = useQwenImage
+        ? { prompt, image: referenceImage }
+        : useQwenText
+          ? { prompt, imageSize: "portrait_4_3" }
+        : useSeedreamEdit
+          ? {
+              prompt,
+              images: referenceImage ? [referenceImage] : [],
+              aspectRatio: "3:4",
+              quality: "basic",
+            }
+            : useSeedreamText
+              ? { prompt, aspectRatio: "3:4", quality: "basic" }
+            : useGrok
+              ? { prompt, aspectRatio: "2:3" }
+              : useZImage
+                ? { prompt, aspectRatio: "3:4" }
+                : useQwenEdit
+                  ? { prompt, image: promptAttachments[0]?.url }
+                  : { prompt, attachments: attachmentsPayload };
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(
+          errorPayload?.details ||
+            errorPayload?.error ||
+            "Generation failed",
+        );
+      }
+      const data = await response.json();
+      const imageData = data?.image as string | undefined;
+      if (!imageData) {
+        throw new Error("No image returned");
+      }
+      updateItem(placeholderId, {
+        src: imageData,
+        isGenerating: false,
+        mimeType: getMimeFromDataUrl(imageData),
+      });
+      setPromptValue("");
+      setPromptAttachments([]);
+      setHasPrompted(true);
+    } catch (error) {
+      removeItem(placeholderId);
+      const message =
+        error instanceof Error ? error.message : "Image generation failed";
+      showToast(message);
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   const zoomOut = () => setZoom((prev) => clamp(prev - 0.1, 0.3, 2.5));
@@ -1344,6 +2018,14 @@ export default function MooodyBoard() {
     : [];
   const contextItem = contextItems[0] ?? null;
   const selectedItems = items.filter((item) => selectedIds.includes(item.id));
+  const selectedImage =
+    selectedItems.length === 1 && selectedItems[0]?.type === "image"
+      ? (selectedItems[0] as Extract<CanvasItem, { type: "image" }>)
+      : null;
+  const selectedText =
+    selectedItems.length === 1 && selectedItems[0]?.type === "text"
+      ? (selectedItems[0] as Extract<CanvasItem, { type: "text" }>)
+      : null;
   const groupBounds =
     selectedItems.length > 1
       ? (() => {
@@ -1362,8 +2044,30 @@ export default function MooodyBoard() {
         })()
       : null;
 
+  const textStrokeColors = [
+    "#111827",
+    "#ef4444",
+    "#22c55e",
+    "#3b82f6",
+    "#f59e0b",
+    "#111111",
+  ];
+  const textFontOptions = [
+    { id: "hand", label: "Hand", icon: PenLine },
+    { id: "serif", label: "Serif", icon: Type },
+    { id: "mono", label: "Mono", icon: Code2 },
+    { id: "display", label: "Display", icon: Type },
+  ] as const;
+  const textSizeOptions = ["s", "m", "l", "xl"] as const;
+  const textAlignOptions = [
+    { id: "left", icon: AlignLeft },
+    { id: "center", icon: AlignCenter },
+    { id: "right", icon: AlignRight },
+  ] as const;
+
   const colorScheme =
     theme === "dark" ? "dark" : theme === "light" ? "light" : "light dark";
+  const handleZoomScale = 1 / zoom;
 
   return (
     <div
@@ -1427,6 +2131,14 @@ export default function MooodyBoard() {
           className="fixed left-4 top-[72px] z-40 w-72 rounded-3xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3 text-sm text-[color:var(--text-primary)] shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:left-6 sm:top-[84px]"
         >
           <div className="flex flex-col gap-1">
+            <Link
+              href="/dashboard"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2 font-semibold transition hover:bg-[color:var(--surface-hover)]"
+            >
+              <ArrowLeft className="h-4 w-4 text-indigo-500" />
+              <span>Back to files</span>
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -1581,6 +2293,352 @@ export default function MooodyBoard() {
         </div>
       )}
 
+      {selectedImage && !isMenuOpen && (
+        <div className="fixed left-4 top-[72px] z-40 w-72 rounded-3xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-sm text-[color:var(--text-primary)] shadow-[0_24px_70px_rgba(15,23,42,0.16)] sm:left-6 sm:top-[84px]">
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Edges
+              </p>
+              <div className="mt-3 flex gap-2">
+                {(["rounded", "sharp"] as const).map((edge) => {
+                  const isActive = (selectedImage.edge ?? "rounded") === edge;
+                  return (
+                    <button
+                      key={edge}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() =>
+                        updateItem(selectedImage.id, { edge })
+                      }
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        isActive
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-500"
+                          : "border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
+                      }`}
+                    >
+                      <span
+                        className={`h-4 w-4 border-2 border-dashed ${
+                          edge === "rounded" ? "rounded-md" : "rounded-none"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Opacity
+              </p>
+              <div className="mt-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((selectedImage.opacity ?? 1) * 100)}
+                  onChange={(event) =>
+                    updateItem(selectedImage.id, {
+                      opacity: Number(event.target.value) / 100,
+                    })
+                  }
+                  className="w-full accent-indigo-400"
+                />
+                <div className="mt-2 flex items-center justify-between text-xs text-[color:var(--text-faint)]">
+                  <span>0</span>
+                  <span>100</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Layers
+              </p>
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => moveItemTo(selectedImage.id, "back")}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowDownToLine className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItemBy(selectedImage.id, -1)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItemBy(selectedImage.id, 1)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItemTo(selectedImage.id, "front")}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowUpToLine className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Actions
+              </p>
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDuplicate([selectedImage])}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <CopyPlus className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopy([selectedImage])}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddLink(selectedImage)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleComingSoon("Crop coming soon")}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <Crop className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedText && !isMenuOpen && (
+        <div className="fixed left-4 top-[72px] z-40 w-72 rounded-3xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-sm text-[color:var(--text-primary)] shadow-[0_24px_70px_rgba(15,23,42,0.16)] sm:left-6 sm:top-[84px]">
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Stroke
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {textStrokeColors.map((color) => {
+                  const isActive = (selectedText.textColor ?? "#111827") === color;
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() => updateItem(selectedText.id, { textColor: color })}
+                      className={`h-8 w-8 rounded-full border-2 transition ${
+                        isActive
+                          ? "border-indigo-400"
+                          : "border-transparent hover:border-[color:var(--border)]"
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Font family
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {textFontOptions.map((option) => {
+                  const isActive =
+                    (selectedText.fontFamily ?? "hand") === option.id;
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() =>
+                        updateItem(selectedText.id, {
+                          fontFamily: option.id,
+                        })
+                      }
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        isActive
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-500"
+                          : "border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Font size
+              </p>
+              <div className="mt-3 flex gap-2">
+                {textSizeOptions.map((size) => {
+                  const isActive = (selectedText.fontSize ?? "m") === size;
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() =>
+                        updateItem(selectedText.id, { fontSize: size })
+                      }
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border text-xs font-semibold uppercase transition ${
+                        isActive
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-500"
+                          : "border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Text align
+              </p>
+              <div className="mt-3 flex gap-2">
+                {textAlignOptions.map((option) => {
+                  const isActive =
+                    (selectedText.textAlign ?? "left") === option.id;
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() =>
+                        updateItem(selectedText.id, {
+                          textAlign: option.id,
+                        })
+                      }
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        isActive
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-500"
+                          : "border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Opacity
+              </p>
+              <div className="mt-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((selectedText.opacity ?? 1) * 100)}
+                  onChange={(event) =>
+                    updateItem(selectedText.id, {
+                      opacity: Number(event.target.value) / 100,
+                    })
+                  }
+                  className="w-full accent-indigo-400"
+                />
+                <div className="mt-2 flex items-center justify-between text-xs text-[color:var(--text-faint)]">
+                  <span>0</span>
+                  <span>100</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Layers
+              </p>
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => moveItemTo(selectedText.id, "back")}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowDownToLine className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItemBy(selectedText.id, -1)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItemBy(selectedText.id, 1)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItemTo(selectedText.id, "front")}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <ArrowUpToLine className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-faint)]">
+                Actions
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopy([selectedText])}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddLink(selectedText)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)]"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeItems([selectedText.id])}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border)] text-red-500 transition hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="relative flex min-h-[100svh] w-full flex-col pt-24 sm:pt-20">
         <div
           ref={canvasRef}
@@ -1632,8 +2690,18 @@ export default function MooodyBoard() {
                 const rotation = item.rotation ?? 0;
                 const flippedScaleX = scaleX * (item.flipX ? -1 : 1);
                 const flippedScaleY = scaleY * (item.flipY ? -1 : 1);
-                const handleScaleX = 1 / Math.max(0.2, Math.abs(scaleX));
-                const handleScaleY = 1 / Math.max(0.2, Math.abs(scaleY));
+                const handleScaleX =
+                  handleZoomScale / Math.max(0.2, Math.abs(scaleX));
+                const handleScaleY =
+                  handleZoomScale / Math.max(0.2, Math.abs(scaleY));
+                const textFontSize =
+                  item.type === "text"
+                    ? resolveTextFontSize(item.fontSize)
+                    : undefined;
+                const textFontFamily =
+                  item.type === "text"
+                    ? resolveTextFontFamily(item.fontFamily)
+                    : undefined;
                 const baseStyle = {
                   left: item.x,
                   top: item.y,
@@ -1642,6 +2710,10 @@ export default function MooodyBoard() {
                   transform: `rotate(${rotation}deg) scale(${flippedScaleX}, ${flippedScaleY})`,
                   transformOrigin: "center",
                 };
+                const edgeStyle =
+                  item.type === "image" && item.edge === "sharp"
+                    ? "rounded-none"
+                    : "rounded-xl";
                 const baseEvents = {
                   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) =>
                     handleItemPointerDown(event, item),
@@ -1656,14 +2728,22 @@ export default function MooodyBoard() {
                     <div
                       key={item.id}
                       {...baseEvents}
-                        onContextMenu={(event) =>
-                          handleItemContextMenu(event, item.id)
-                        }
-                        onDoubleClick={() => handleTextDoubleClick(item.id)}
+                      onContextMenu={(event) =>
+                        handleItemContextMenu(event, item.id)
+                      }
+                      onDoubleClick={() => handleTextDoubleClick(item.id)}
                       className={`absolute select-none whitespace-nowrap rounded-md px-2 py-1 text-base font-semibold text-[color:var(--text-primary)] ${
                         item.locked ? "cursor-not-allowed" : "cursor-text"
                       }`}
-                      style={baseStyle}
+                      style={{
+                        ...baseStyle,
+                        color: item.textColor ?? "var(--text-primary)",
+                        fontFamily: textFontFamily,
+                        fontSize: textFontSize ? `${textFontSize}px` : undefined,
+                        lineHeight: "1.2",
+                        textAlign: item.textAlign ?? "left",
+                        opacity: item.opacity ?? 1,
+                      }}
                     >
                       <div
                         ref={isEditing ? editingRef : null}
@@ -1776,25 +2856,47 @@ export default function MooodyBoard() {
                     onContextMenu={(event) =>
                       handleItemContextMenu(event, item.id)
                     }
-                    className={`absolute select-none rounded-xl bg-[color:var(--surface)] ${
+                    className={`absolute select-none ${edgeStyle} ${
                       item.locked ? "cursor-not-allowed" : "cursor-grab"
                     }`}
-                    style={baseStyle}
+                    style={{
+                      ...baseStyle,
+                      borderRadius: item.edge === "sharp" ? 0 : 16,
+                      backgroundColor: "transparent",
+                    }}
                   >
-                    <img
-                      src={item.src}
-                      alt="Uploaded"
-                      className="h-full w-full rounded-xl object-cover"
-                      draggable={false}
-                    />
+                    {item.src ? (
+                      <img
+                        src={item.src}
+                        alt="Uploaded"
+                        className={`h-full w-full ${edgeStyle} object-cover`}
+                        style={{
+                          opacity: item.opacity ?? 1,
+                          borderRadius: item.edge === "sharp" ? 0 : 16,
+                        }}
+                        draggable={false}
+                      />
+                    ) : (
+                      <div
+                        className={`h-full w-full ${edgeStyle} bg-[color:var(--surface)]`}
+                        style={{ borderRadius: item.edge === "sharp" ? 0 : 16 }}
+                      />
+                    )}
                     {item.locked && (
                       <span className="absolute -right-2 -top-2 rounded-full bg-[color:var(--surface)] p-1 shadow-md">
                         <Lock className="h-3 w-3 text-[color:var(--text-secondary)]" />
                       </span>
                     )}
+                    {item.isGenerating && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className={`h-full w-full ${edgeStyle} border border-[color:var(--border)] bg-[color:var(--surface)]/70`}>
+                          <div className={`h-full w-full ${edgeStyle} animate-pulse bg-gradient-to-br from-[color:var(--surface)] via-[color:var(--surface-hover)] to-[color:var(--surface)]`} />
+                        </div>
+                      </div>
+                    )}
                     {showOutline && (
                       <div className="absolute inset-0">
-                        <div className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/80" />
+                        <div className={`pointer-events-none absolute inset-0 ${edgeStyle} border border-indigo-400/80`} />
                         {showHandles && (
                           <>
                             <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
@@ -1880,12 +2982,32 @@ export default function MooodyBoard() {
                     height: groupBounds.maxY - groupBounds.minY,
                   }}
                 >
-                  <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
-                  <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
-                  <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
-                  <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]" />
-                  <div className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70" />
-                  <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%] h-3 w-3 rounded-full border border-indigo-400 bg-[color:var(--surface)]" />
+                  <span
+                    className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                    style={{ transform: `scale(${handleZoomScale}) translate(-50%, -50%)` }}
+                  />
+                  <span
+                    className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                    style={{ transform: `scale(${handleZoomScale}) translate(50%, -50%)` }}
+                  />
+                  <span
+                    className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                    style={{ transform: `scale(${handleZoomScale}) translate(-50%, 50%)` }}
+                  />
+                  <span
+                    className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 h-3 w-3 rounded-sm border border-indigo-400 bg-[color:var(--surface)]"
+                    style={{ transform: `scale(${handleZoomScale}) translate(50%, 50%)` }}
+                  />
+                  <div
+                    className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-indigo-400/70"
+                    style={{
+                      transform: `scale(${handleZoomScale}) translate(-50%, -100%)`,
+                    }}
+                  />
+                  <span
+                    className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[170%] h-3 w-3 rounded-full border border-indigo-400 bg-[color:var(--surface)]"
+                    style={{ transform: `scale(${handleZoomScale}) translate(-50%, -170%)` }}
+                  />
                 </div>
               )}
             </div>
@@ -1938,7 +3060,46 @@ export default function MooodyBoard() {
       </div>
 
       <div className="fixed bottom-6 left-1/2 z-30 w-[min(680px,92vw)] -translate-x-1/2">
-        <PromptInput />
+        <PromptInput
+          showMic
+          layout="stacked"
+          value={promptValue}
+          onValueChange={setPromptValue}
+          onSubmit={handleGenerateImage}
+          loadingOverride={isGeneratingImage}
+          onFocusChange={setIsPromptFocused}
+          modelOptions={[
+            { id: "gemini", label: "Nano Banana Pro" },
+            { id: "zimage", label: "Z-Image" },
+            { id: "grok", label: "Grok Image" },
+            { id: "qwen", label: "Qwen Image" },
+            { id: "seedream", label: "Seedream 4.5" },
+          ]}
+          selectedModel={generationModel}
+          onSelectModel={(id) => {
+            if (id === "zimage") {
+              setGenerationModel("zimage");
+            } else if (id === "grok") {
+              setGenerationModel("grok");
+            } else if (id === "qwen") {
+              setGenerationModel("qwen");
+            } else if (id === "seedream") {
+              setGenerationModel("seedream");
+            } else {
+              setGenerationModel("gemini");
+            }
+          }}
+          enableAttachmentMenu
+          attachments={promptAttachments}
+          onAddAttachments={handleAddAttachments}
+          onReplaceAttachment={handleReplaceAttachment}
+          onRemoveAttachment={handleRemoveAttachment}
+          placeholder={
+            hasPrompted
+              ? ""
+              : "Describe items to start generating your mood board"
+          }
+        />
       </div>
 
       {contextMenu && (
@@ -2057,6 +3218,26 @@ export default function MooodyBoard() {
               <span>Add link</span>
               <Link2 className="h-3.5 w-3.5 text-[color:var(--text-faint)]" />
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (contextItem?.type === "image") {
+                  handleRemoveBackground(
+                    contextItem as Extract<CanvasItem, { type: "image" }>,
+                  );
+                }
+                setContextMenu(null);
+              }}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-[color:var(--surface-hover)] disabled:opacity-40"
+              disabled={
+                !hasSingleContext ||
+                contextItem?.locked ||
+                contextItem?.type !== "image"
+              }
+            >
+              <span>Remove background</span>
+              <Scissors className="h-3.5 w-3.5 text-[color:var(--text-faint)]" />
+            </button>
             <div className="my-2 h-px bg-[color:var(--border)]" />
             <button
               type="button"
@@ -2116,6 +3297,7 @@ export default function MooodyBoard() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
         onChange={handleImageChange}
       />

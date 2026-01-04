@@ -1,5 +1,6 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Instrument_Serif, Inter } from "next/font/google";
+import { Fraunces, Instrument_Serif, Inter } from "next/font/google";
 import CookieBanner from "@/components/CookieBanner";
 import "./globals.css";
 
@@ -14,9 +15,20 @@ const instrumentSerif = Instrument_Serif({
   weight: "400",
 });
 
+const fraunces = Fraunces({
+  variable: "--font-logo",
+  subsets: ["latin"],
+  weight: ["900"],
+  style: ["italic"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "The Mooody",
   description: "The Mooody is a vision and mood board generator for your next reality.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -27,10 +39,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${instrumentSerif.variable} antialiased`}
+        className={`${inter.variable} ${instrumentSerif.variable} ${fraunces.variable} antialiased`}
       >
-        {children}
-        <CookieBanner />
+        <ClerkProvider
+          appearance={{
+            cssLayerName: "clerk",
+          }}
+        >
+          {children}
+          <CookieBanner />
+        </ClerkProvider>
       </body>
     </html>
   );

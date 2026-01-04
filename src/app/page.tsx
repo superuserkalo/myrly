@@ -1,19 +1,13 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PromptInput from "@/components/PromptInput";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 const headlinePrefix = "Manifest Your";
-const headlineWords = [
-  "Reality",
-  "Life",
-  "Vision",
-  "Ideas",
-  "Mood",
-  "Future",
-  "Legacy",
-];
+const headlineWords = ["Palette", "Ideas", "Interior", "Vision"];
+const promptDemoText = "Warm earth tones...";
 const maxHeadlineWordLength =
   Math.max(...headlineWords.map((word) => word.length)) + 1;
 const isFeatureEnabled = (value?: string) => value === "true" || value === "1";
@@ -208,15 +202,21 @@ export default function Home() {
   >("typing");
   const [introComplete, setIntroComplete] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [freezeTypewriter, setFreezeTypewriter] = useState(false);
+  const [heroStep, setHeroStep] = useState<
+    "header" | "input" | "clicking" | "loading" | "result"
+  >("header");
+  const [promptValue, setPromptValue] = useState("");
+  const [isPromptLoading, setIsPromptLoading] = useState(false);
+  const hasStartedHeroRef = useRef(false);
   const activeWord = headlineWords[currentWordIndex];
   const activeWordChars = Array.from(`${activeWord} `);
   const prefixChars = Array.from(`${headlinePrefix} `);
   const introLength = prefixChars.length + activeWordChars.length;
   const maxHeadlineLength =
     headlinePrefix.length + 1 + maxHeadlineWordLength;
-  const settingsCount = Object.values(settingsFeatureFlags).filter(Boolean)
-    .length;
+const settingsCount = Object.values(settingsFeatureFlags).filter(Boolean)
+  .length;
   const settingsSpanClass =
     settingsCount === 1
       ? "lg:col-span-12"
@@ -237,6 +237,9 @@ export default function Home() {
   const caretIndex = introComplete
     ? prefixChars.length + safeTypedIndex
     : typedIndex;
+  const isSequenceActive =
+    heroStep === "input" || heroStep === "clicking" || heroStep === "loading";
+  const isCursorClicking = heroStep === "clicking";
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -253,6 +256,9 @@ export default function Home() {
 
   useEffect(() => {
     if (reduceMotion) {
+      return;
+    }
+    if (freezeTypewriter) {
       return;
     }
 
@@ -315,176 +321,244 @@ export default function Home() {
     reduceMotion,
     typedIndex,
     typingPhase,
+    freezeTypewriter,
   ]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 12);
-    };
+    if (hasStartedHeroRef.current) {
+      return;
+    }
+    if (!introComplete || typingPhase !== "pausing") {
+      return;
+    }
+    if (currentWordIndex !== 0) {
+      return;
+    }
+    hasStartedHeroRef.current = true;
+    setFreezeTypewriter(true);
+    setHeroStep("input");
+  }, [currentWordIndex, introComplete, typingPhase]);
 
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
+  useEffect(() => {
+    if (heroStep !== "input") {
+      return;
+    }
+    let index = 0;
+    setPromptValue("");
+    const intervalId = window.setInterval(() => {
+      index += 1;
+      setPromptValue(promptDemoText.slice(0, index));
+      if (index >= promptDemoText.length) {
+        window.clearInterval(intervalId);
+        setHeroStep("clicking");
+      }
+    }, 55);
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.clearInterval(intervalId);
     };
-  }, []);
+  }, [heroStep]);
+
+  useEffect(() => {
+    if (heroStep !== "clicking") {
+      return;
+    }
+    const clickTimer = window.setTimeout(() => {
+      setHeroStep("loading");
+    }, 350);
+    return () => {
+      window.clearTimeout(clickTimer);
+    };
+  }, [heroStep]);
+
+  useEffect(() => {
+    if (heroStep !== "loading") {
+      return;
+    }
+    setIsPromptLoading(true);
+    const loadingTimer = window.setTimeout(() => {
+      setIsPromptLoading(false);
+      setFreezeTypewriter(false);
+      setHeroStep("result");
+    }, 2000);
+    return () => {
+      window.clearTimeout(loadingTimer);
+    };
+  }, [heroStep]);
+
 
   return (
     <div className="relative flex min-h-[100svh] min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 -top-[200px] h-[520px] w-[90vw] max-w-3xl -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.35),_rgba(15,23,42,0)_70%)] blur-[120px] sm:-top-[260px] sm:h-[600px]" />
-      </div>
+      <div className="pointer-events-none absolute inset-0" />
 
-      <header
-        className={`fixed left-0 right-0 top-0 z-30 w-full border-b transition-colors ${
-          isScrolled
-            ? "border-white/10 bg-black/60 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur"
-            : "border-transparent bg-transparent"
-        }`}
-      >
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 sm:py-5 md:px-8">
-          <a
-            href="/"
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] transition hover:text-white"
-          >
-            <span className="font-light text-muted">The</span>
-            <span className="text-white">Mooody</span>
-          </a>
-          <button
-            type="button"
-            className="cursor-pointer rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200"
-          >
-            Upgrade
-          </button>
-        </div>
-      </header>
+      <SiteHeader />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pb-12 pt-20 md:px-8 sm:pb-16 sm:pt-24">
-        <section className="w-full max-w-2xl text-center">
-          <h1
-            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl lg:text-6xl"
-            aria-label={headlineLabel}
-          >
-            <span aria-hidden="true">
-              <span
-                className="typewriter justify-center"
-                style={{ minWidth: `${maxHeadlineLength}ch` }}
-                aria-hidden="true"
-              >
-                {prefixChars.map((char, index) => {
-                  const isVisible = introComplete || index <= typedIndex;
-                  const isCaret = caretIndex === index;
-                  return (
+      <main className="relative z-10 flex w-full flex-1 flex-col items-center">
+        <section className="relative flex w-full flex-1 flex-col items-center min-h-[100svh]">
+          <div className="flex w-full flex-1 flex-col items-center justify-center px-6 pb-10 pt-24 sm:px-8 sm:pb-14 sm:pt-28 lg:items-start lg:justify-start lg:px-12 lg:pt-40">
+            <div className="w-full max-w-2xl lg:ml-0 lg:mr-auto">
+              <div className="w-full text-center pt-2 sm:pt-0 lg:text-left">
+                <h1
+                  className="font-display text-4xl leading-tight tracking-tight sm:text-5xl lg:text-6xl"
+                  aria-label={headlineLabel}
+                >
+                  <span aria-hidden="true">
                     <span
-                      key={`prefix-${char}-${index}`}
-                      className={`typewriter-char ${
-                        isVisible ? "is-visible" : "is-hidden"
-                      } ${isCaret ? "is-caret" : ""} ${
-                        isCaret && shouldBlink ? "is-caret-blink" : ""
-                      }`}
+                      className="typewriter justify-center text-[color:var(--charcoal)] lg:justify-start"
+                      style={{ minWidth: `${maxHeadlineLength}ch` }}
+                      aria-hidden="true"
                     >
-                      {char}
+                      {prefixChars.map((char, index) => {
+                        const isVisible = introComplete || index <= typedIndex;
+                        const isCaret = caretIndex === index;
+                        return (
+                          <span
+                            key={`prefix-${char}-${index}`}
+                            className={`typewriter-char ${
+                              isVisible ? "is-visible" : "is-hidden"
+                            } ${isCaret ? "is-caret" : ""} ${
+                              isCaret && shouldBlink ? "is-caret-blink" : ""
+                            }`}
+                          >
+                            {char}
+                          </span>
+                        );
+                      })}
+                      {activeWordChars.map((char, index) => {
+                        const globalIndex = prefixChars.length + index;
+                        const isVisible = introComplete
+                          ? index <= safeTypedIndex
+                          : globalIndex <= typedIndex;
+                        const isCaret = caretIndex === globalIndex;
+                        return (
+                          <span
+                            key={`word-${char}-${index}`}
+                            className={`typewriter-char text-[color:var(--orange)] ${
+                              isVisible ? "is-visible" : "is-hidden"
+                            } ${isCaret ? "is-caret" : ""} ${
+                              isCaret && shouldBlink ? "is-caret-blink" : ""
+                            }`}
+                          >
+                            {char}
+                          </span>
+                        );
+                      })}
                     </span>
-                  );
-                })}
-                {activeWordChars.map((char, index) => {
-                  const globalIndex = prefixChars.length + index;
-                  const isVisible = introComplete
-                    ? index <= safeTypedIndex
-                    : globalIndex <= typedIndex;
-                  const isCaret = caretIndex === globalIndex;
-                  return (
-                    <span
-                      key={`word-${char}-${index}`}
-                      className={`typewriter-char ${
-                        isVisible ? "is-visible" : "is-hidden"
-                      } ${isCaret ? "is-caret" : ""} ${
-                        isCaret && shouldBlink ? "is-caret-blink" : ""
-                      }`}
-                    >
-                      {char}
-                    </span>
-                  );
-                })}
-              </span>
-            </span>
-          </h1>
-          <p className="mt-3 text-sm text-muted sm:text-base">
-            Describe your vision for 2026. Be specific.
-          </p>
-        </section>
-
-        <div className="relative mt-8 w-full max-w-2xl">
-          <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-blue-500/28 via-indigo-500/17 to-sky-500/23 blur-lg" />
-          <PromptInput showEdgeHighlights />
-        </div>
-        <div className="mt-4 flex w-full max-w-2xl justify-center text-center">
-          <a
-            href="/quiz"
-            className="text-xs font-semibold text-blue-400 underline underline-offset-4 transition hover:text-blue-300 sm:rounded-full sm:border sm:border-blue-400/40 sm:bg-white/5 sm:px-4 sm:py-2 sm:text-sm sm:no-underline sm:hover:border-blue-300/70 sm:hover:bg-white/10"
-          >
-            Not sure what to type? Take Quiz to Visualize your New Self.
-          </a>
-        </div>
-
-        {settingsCount > 0 && (
-          <div className="mt-10 grid w-full grid-cols-1 gap-6 sm:mt-12 sm:gap-10 lg:grid-cols-12 lg:gap-12">
-            {settingsFeatureFlags.layout && (
-              <section
-                className={`${settingsSpanClass} flex flex-col items-center text-center`}
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
-                  Layout Structure
+                  </span>
+                </h1>
+                <p className="mt-3 text-sm text-muted sm:text-base">
+                  Mooody is your creative partner to explore and unleash creativity
                 </p>
-                <div className="mt-3 flex w-full max-w-full justify-center gap-2 overflow-x-auto pb-1 sm:mt-4 sm:grid sm:max-w-[220px] sm:grid-cols-2 sm:gap-x-1 sm:gap-y-3 sm:overflow-visible sm:pb-0">
-                  {layoutOptions.map((option) => {
-                    const isActive = layoutSelection === option.label;
-                    return (
-                      <button
-                        key={option.label}
-                        type="button"
-                        aria-pressed={isActive}
-                        onClick={() =>
-                          setLayoutSelection((prev) =>
-                            prev === option.label ? "" : option.label,
-                          )
-                        }
-                        className="group flex shrink-0 flex-col items-center gap-2 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2"
-                      >
-                        <span
-                          className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
-                            isActive
-                              ? "border-white/45 bg-white/15 text-white"
-                              : "border-border bg-surface text-muted group-hover:border-zinc-500 group-hover:bg-surface-strong group-hover:text-white"
-                          }`}
-                        >
-                          <IconLayout
-                            variant={
-                              option.icon as
-                                | "single"
-                                | "grid"
-                                | "collage"
-                                | "bento"
-                            }
-                            className="h-6 w-6"
-                          />
-                        </span>
-                        <span
-                          className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
-                            isActive
-                              ? "text-white"
-                              : "text-muted group-hover:text-white"
-                          }`}
-                        >
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
+              </div>
+
+              <div className="relative mt-8 w-full">
+                <PromptInput
+                  showEdgeHighlights
+                  showShadow={false}
+                  loadingOnSubmit
+                  value={promptValue}
+                  onValueChange={setPromptValue}
+                  readOnly={isSequenceActive}
+                  loadingOverride={isPromptLoading ? true : undefined}
+                  submitHoverOverride
+                />
+                <div
+                  className={`pointer-events-none absolute bottom-2 right-2 ${
+                    isCursorClicking ? "cursor-click" : ""
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-7 w-7"
+                    aria-hidden="true"
+                  >
+                      <path
+                        d="M6.5 11.5V6.2c0-.9.7-1.7 1.7-1.7.9 0 1.7.8 1.7 1.7v4.1h.4V4.8c0-.9.7-1.7 1.7-1.7.9 0 1.7.8 1.7 1.7v5.5h.4V6.2c0-.9.7-1.7 1.7-1.7.9 0 1.7.8 1.7 1.7v6.4c0 3.3-1.9 5.9-5.5 5.9H11c-2.4 0-4.5-1.5-5.2-3.8l-1.1-3.6c-.2-.6.2-1.2.8-1.4.6-.2 1.3.1 1.6.7l.4 1.1z"
+                        fill="#ffffff"
+                        stroke="#111111"
+                        strokeWidth="1.3"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div
+            className={`pointer-events-none absolute inset-0 hidden items-center justify-end pr-6 transition-opacity duration-700 lg:flex lg:pr-12 ${
+              heroStep === "result" ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {heroStep === "result" && (
+              <video
+                className="h-auto w-[min(520px,38vw)] rounded-3xl"
+                src="/palette-results.mp4"
+                autoPlay
+                muted
+                playsInline
+              />
             )}
+          </div>
+
+          {settingsCount > 0 && (
+            <div className="mt-10 w-full px-5 sm:px-8">
+              <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 sm:mt-12 sm:gap-10 lg:grid-cols-12 lg:gap-12">
+              {settingsFeatureFlags.layout && (
+                <section
+                  className={`${settingsSpanClass} flex flex-col items-center text-center`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+                    Layout Structure
+                  </p>
+                  <div className="mt-3 flex w-full max-w-full justify-center gap-2 overflow-x-auto pb-1 sm:mt-4 sm:grid sm:max-w-[220px] sm:grid-cols-2 sm:gap-x-1 sm:gap-y-3 sm:overflow-visible sm:pb-0">
+                    {layoutOptions.map((option) => {
+                      const isActive = layoutSelection === option.label;
+                      return (
+                        <button
+                          key={option.label}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() =>
+                            setLayoutSelection((prev) =>
+                              prev === option.label ? "" : option.label,
+                            )
+                          }
+                          className="group flex shrink-0 flex-col items-center gap-2 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2"
+                        >
+                          <span
+                            className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
+                              isActive
+                                ? "border-primary/40 bg-primary/10 text-primary"
+                                : "border-border bg-surface text-muted group-hover:border-slate-400 group-hover:bg-surface-strong group-hover:text-foreground"
+                            }`}
+                          >
+                            <IconLayout
+                              variant={
+                                option.icon as
+                                  | "single"
+                                  | "grid"
+                                  | "collage"
+                                  | "bento"
+                              }
+                              className="h-6 w-6"
+                            />
+                          </span>
+                          <span
+                            className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                              isActive
+                                ? "text-primary"
+                                : "text-muted group-hover:text-foreground"
+                            }`}
+                          >
+                            {option.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
 
             {settingsFeatureFlags.aspectRatio && (
               <section
@@ -509,8 +583,8 @@ export default function Home() {
                           }
                           className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
                             isActive
-                              ? "bg-white/15 text-white"
-                              : "text-muted hover:bg-white/5 hover:text-white"
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted hover:bg-black/5 hover:text-foreground"
                           }`}
                         >
                           {ratio.label}
@@ -540,8 +614,8 @@ export default function Home() {
                           }
                           className={`group relative flex w-[160px] shrink-0 items-center justify-center border-b border-transparent pb-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-offset-2 sm:w-full sm:shrink ${
                             isSelected
-                              ? "border-primary/60 text-white"
-                              : "text-muted hover:border-white/20 hover:text-white"
+                              ? "border-primary/60 text-primary"
+                              : "text-muted hover:border-slate-300 hover:text-foreground"
                           }`}
                         >
                           <div className="flex flex-1 items-center gap-3 sm:relative sm:justify-center sm:gap-0">
@@ -583,10 +657,10 @@ export default function Home() {
               </section>
             )}
 
-            {settingsFeatureFlags.aestheticStyle && (
-              <section
-                className={`${settingsSpanClass} flex flex-col items-center text-center`}
-              >
+              {settingsFeatureFlags.aestheticStyle && (
+                <section
+                  className={`${settingsSpanClass} flex flex-col items-center text-center`}
+                >
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                   Aesthetic Style
                 </p>
@@ -605,8 +679,8 @@ export default function Home() {
                         }
                         className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition ${
                           isActive
-                            ? "border-white/45 bg-white/15 text-white"
-                            : "border-border bg-surface text-muted hover:border-zinc-500 hover:bg-surface-strong hover:text-white"
+                            ? "border-primary/50 bg-primary/10 text-primary"
+                            : "border-border bg-surface text-muted hover:border-slate-400 hover:bg-surface-strong hover:text-foreground"
                         }`}
                       >
                         {style.label}
@@ -616,159 +690,46 @@ export default function Home() {
                   <button
                     type="button"
                     aria-label="Add aesthetic style"
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border text-muted transition hover:border-zinc-500 hover:text-white"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border text-muted transition hover:border-slate-400 hover:text-foreground"
                   >
                     <IconPlus className="h-4 w-4" />
                   </button>
                 </div>
               </section>
             )}
-          </div>
-        )}
+              </div>
+            </div>
+          )}
+        </section>
 
-        <section id="community" className="mt-12 w-full max-w-4xl">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white sm:text-xl">
-              From the Community
-            </h2>
-            <a
-              href="#"
-              className="group inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition hover:text-white"
-            >
-              Browse All
-              <span className="text-base transition group-hover:translate-x-0.5">
-                →
-              </span>
-            </a>
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            Explore what people are manifesting for 2026.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <div className="w-full max-w-xs sm:max-w-sm">
-              <Image
-                src="/community/manifestos-1767066386371.png"
-                alt="Pinterest editorial vision board"
-                width={1000}
-                height={1778}
-                className="h-auto w-full rounded-3xl border border-white/10 object-cover shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
-                sizes="(max-width: 640px) 80vw, 320px"
-              />
+        <section id="community" className="mt-12 w-full px-5 sm:px-8">
+          <div className="mx-auto w-full max-w-4xl">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-foreground sm:text-xl">
+                From the Community
+              </h2>
+              <a
+                href="#"
+                className="group inline-flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-foreground"
+              >
+                Browse All
+                <span className="text-base transition group-hover:translate-x-0.5">
+                  →
+                </span>
+              </a>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              Explore what people are manifesting for 2026.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <div className="w-full max-w-xs sm:max-w-sm" />
             </div>
           </div>
         </section>
 
       </main>
 
-      <footer className="relative z-10 mt-auto w-full border-t border-white/10 bg-black/50">
-        <div className="mx-auto w-full max-w-6xl px-5 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-8 md:px-8 md:pt-10">
-          <div className="grid gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.35em] text-blue-300/80">
-                <span className="h-px w-10 bg-gradient-to-r from-blue-400/80 to-transparent" />
-                Mooody Club
-              </div>
-              <h2 className="text-xl font-semibold text-white sm:text-2xl">
-                Keep manifesting with us.
-              </h2>
-              <p className="text-sm text-muted">
-                Weekly prompts, community drops, and new rituals. No spam.
-              </p>
-              <form className="space-y-3">
-                <label className="sr-only" htmlFor="footer-email">
-                  Email address
-                </label>
-                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-                  <input
-                    id="footer-email"
-                    type="email"
-                    placeholder="you@email.com"
-                    className="h-11 w-full flex-1 rounded-full border border-white/15 bg-black/40 px-4 text-base text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-400/60"
-                  />
-                  <button
-                    type="submit"
-                    className="h-11 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-zinc-200"
-                  >
-                    Join
-                  </button>
-                </div>
-                <label className="flex items-start gap-2 text-[11px] text-white/60">
-                  <input
-                    type="checkbox"
-                    required
-                    className="mt-0.5 h-4 w-4 rounded border border-white/20 bg-black/40 text-blue-400"
-                  />
-                  <span>
-                    I agree to receive updates and accept the{" "}
-                    <a className="underline underline-offset-4" href="/privacy">
-                      Privacy Policy
-                    </a>
-                    .
-                  </span>
-                </label>
-              </form>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-3">
-              <div className="space-y-3 text-sm text-white/70">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-                  Company
-                </p>
-                <a className="block transition hover:text-white" href="#">
-                  About Us
-                </a>
-                <a className="block transition hover:text-white" href="#">
-                  Contact
-                </a>
-                <a className="block transition hover:text-white" href="#">
-                  Pricing
-                </a>
-                <a className="block transition hover:text-white" href="#">
-                  Refund
-                </a>
-              </div>
-              <div className="space-y-3 text-sm text-white/70">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-                  Legal
-                </p>
-                <a className="block transition hover:text-white" href="#">
-                  Impressum
-                </a>
-                <a className="block transition hover:text-white" href="#">
-                  Terms and Conditions
-                </a>
-                <a className="block transition hover:text-white" href="/privacy">
-                  Privacy
-                </a>
-                <a className="block transition hover:text-white" href="/cookies">
-                  Cookies
-                </a>
-              </div>
-              <div className="space-y-3 text-sm text-white/70">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-                  Explore
-                </p>
-                <a className="block transition hover:text-white" href="#">
-                  Affiliate Program
-                </a>
-                <a className="block transition hover:text-white" href="/quiz">
-                  Manifestation Quiz
-                </a>
-                <a className="block transition hover:text-white" href="#community">
-                  Store
-                </a>
-                <a className="block transition hover:text-white" href="#">
-                  FAQ
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 border-t border-white/10 pt-4 text-[11px] text-white/40">
-            © 2026 The Mooody. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

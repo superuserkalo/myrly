@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+} from "@clerk/nextjs";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 
@@ -452,15 +458,15 @@ export default function ManifestationQuiz() {
 
   if (phase === "synthesis") {
     return (
-      <div className="relative min-h-[100svh] bg-black text-foreground">
+      <div className="relative min-h-[100svh] bg-background text-foreground">
         <div className="flex min-h-[100svh] items-center justify-center px-6">
           <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
               Synthesizing
             </p>
             <h1
               key={synthesisIndex}
-              className="mt-4 text-xl font-semibold text-white/90 drop-shadow-[0_0_18px_rgba(255,255,255,0.35)] animate-pulse sm:text-2xl"
+              className="mt-4 text-xl font-semibold text-foreground drop-shadow-[0_0_14px_rgba(59,130,246,0.2)] animate-pulse sm:text-2xl"
             >
               {synthesisMessages[synthesisIndex]}
             </h1>
@@ -473,34 +479,58 @@ export default function ManifestationQuiz() {
   return (
     <div className="relative min-h-[100svh] bg-background text-foreground">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 -top-[200px] h-[520px] w-[90vw] max-w-3xl -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_rgba(15,23,42,0)_70%)] blur-[120px] sm:-top-[260px] sm:h-[600px]" />
+        <div className="absolute left-1/2 -top-[200px] h-[520px] w-[90vw] max-w-3xl -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_rgba(248,247,243,0)_70%)] blur-[120px] sm:-top-[260px] sm:h-[600px]" />
       </div>
 
       <header
         className={`fixed left-0 right-0 top-0 z-30 w-full border-b transition-colors ${
           isScrolled
-            ? "border-white/10 bg-black/70 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur"
+            ? "border-black/10 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur"
             : "border-transparent bg-transparent"
         }`}
       >
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 md:px-8">
-          <a
-            href="/"
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em]"
-          >
-            <span className="font-light text-muted">The</span>
-            <span className="text-white">Mooody</span>
+          <a href="/" className="flex items-center">
+            <Image
+              src="/moooday_black-removed.png"
+              alt="The Mooody"
+              width={1400}
+              height={563}
+              priority
+              className="h-9 w-auto origin-left scale-[2.4] sm:h-12 sm:scale-[3.1]"
+              sizes="(max-width: 640px) 360px, 640px"
+            />
           </a>
-          <a
-            href="/"
-            className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold text-white/80 transition hover:border-white/30 hover:bg-white/20 hover:text-white"
-          >
-            Exit Quiz ✕
-          </a>
+          <div className="flex items-center gap-2">
+            <SignedOut>
+              <SignInButton forceRedirectUrl="/dashboard">
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
+                >
+                  Login
+                </button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <a
+                href="/dashboard"
+                className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
+              >
+                Open App
+              </a>
+            </SignedIn>
+            <a
+              href="/"
+              className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
+            >
+              Exit Quiz ✕
+            </a>
+          </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-4xl flex-col justify-center px-5 pb-16 pt-24 md:px-8 md:pt-6">
+      <main className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-4xl flex-col justify-center px-5 pb-16 pt-24 md:px-8 md:pt-6 lg:ml-0 lg:mr-auto">
         {phase === "quiz" && (
           <>
             <div className="flex items-center gap-4">
@@ -509,13 +539,13 @@ export default function ManifestationQuiz() {
                 aria-label="Go back"
                 onClick={handleBack}
                 disabled={currentStep === 0}
-                className="rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-full border border-black/10 bg-white/80 p-2 text-muted transition hover:border-black/20 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              <div className="h-2 w-full rounded-full bg-white/10">
+              <div className="h-2 w-full rounded-full bg-black/10">
                 <div
-                  className="h-full rounded-full bg-blue-400/80 shadow-[0_0_14px_rgba(59,130,246,0.5)] transition-all"
+                  className="h-full rounded-full bg-blue-500/80 shadow-[0_0_12px_rgba(59,130,246,0.35)] transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -546,7 +576,7 @@ export default function ManifestationQuiz() {
                             className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
                           >
                             First name
-                            <span className="ml-1 text-white/70">*</span>
+                            <span className="ml-1 text-blue-600">*</span>
                           </label>
                           <input
                             id="first-name"
@@ -561,7 +591,7 @@ export default function ManifestationQuiz() {
                                 },
                               }))
                             }
-                            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-white/30"
+                            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                             placeholder="First name"
                             type="text"
                             autoComplete="given-name"
@@ -573,7 +603,7 @@ export default function ManifestationQuiz() {
                             className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
                           >
                             Last name
-                            <span className="ml-1 text-white/70">*</span>
+                            <span className="ml-1 text-blue-600">*</span>
                           </label>
                           <input
                             id="last-name"
@@ -588,7 +618,7 @@ export default function ManifestationQuiz() {
                                 },
                               }))
                             }
-                            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-white/30"
+                            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                             placeholder="Last name"
                             type="text"
                             autoComplete="family-name"
@@ -605,13 +635,13 @@ export default function ManifestationQuiz() {
                             className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
                           >
                             Gender
-                            <span className="ml-1 text-white/70">*</span>
+                            <span className="ml-1 text-blue-600">*</span>
                           </label>
                           <div className="relative mt-2">
                             <select
                               id="gender"
                               required
-                              className="h-11 w-full appearance-none rounded-xl border border-border bg-surface px-4 pr-10 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30"
+                              className="h-11 w-full appearance-none rounded-xl border border-border bg-surface px-4 pr-10 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                               value={selections.calibration.gender}
                               onChange={(event) =>
                                 setSelections((prev) => ({
@@ -639,7 +669,7 @@ export default function ManifestationQuiz() {
                             className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
                           >
                             Birthday
-                            <span className="ml-1 text-white/70">*</span>
+                            <span className="ml-1 text-blue-600">*</span>
                           </label>
                           <input
                             id="birthday"
@@ -655,13 +685,13 @@ export default function ManifestationQuiz() {
                               }))
                             }
                             max={maxBirthDate}
-                            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-white/30"
+                            className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                             placeholder="Birthday (MM / DD / YYYY)"
                             type="date"
                             autoComplete="bday"
                           />
                           {!isValidBirthday && (
-                            <p className="mt-2 text-xs text-white/60">
+                            <p className="mt-2 text-xs text-muted">
                               You must be at least 14 years old.
                             </p>
                           )}
@@ -683,7 +713,7 @@ export default function ManifestationQuiz() {
                   <p className="mt-2 text-sm text-muted">
                     Select up to two core pillars.
                   </p>
-                  <p className="mt-4 text-xs text-white/60">
+                  <p className="mt-4 text-xs text-muted">
                     {selections.corePillars.length}/2 Selected
                   </p>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -696,8 +726,8 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleMulti("corePillars", pillar.id, 2)}
                           className={`group rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
-                              : "border-border bg-surface hover:border-white/30"
+                              ? "border-blue-500/60 bg-blue-50 shadow-[0_0_16px_rgba(59,130,246,0.25)]"
+                              : "border-border bg-surface hover:border-slate-300 hover:bg-surface-strong"
                           }`}
                         >
                           <h3 className="text-base font-semibold">{pillar.title}</h3>
@@ -732,8 +762,8 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleSingle("shadowWork", option.id)}
                           className={`rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
-                              : "border-border bg-surface hover:border-white/30"
+                              ? "border-blue-500/60 bg-blue-50 shadow-[0_0_16px_rgba(59,130,246,0.25)]"
+                              : "border-border bg-surface hover:border-slate-300 hover:bg-surface-strong"
                           }`}
                         >
                           <h3 className="text-base font-semibold">{option.title}</h3>
@@ -765,8 +795,8 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleSingle("emotionalGoal", goal.id)}
                           className={`rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
-                              : "border-border bg-surface hover:border-white/30"
+                              ? "border-blue-500/60 bg-blue-50 shadow-[0_0_16px_rgba(59,130,246,0.25)]"
+                              : "border-border bg-surface hover:border-slate-300 hover:bg-surface-strong"
                           }`}
                         >
                           <h3 className="text-base font-semibold">{goal.title}</h3>
@@ -791,7 +821,7 @@ export default function ManifestationQuiz() {
                   <p className="mt-2 text-sm text-muted">
                     Choose up to two aesthetics.
                   </p>
-                  <p className="mt-4 text-xs text-white/60">
+                  <p className="mt-4 text-xs text-muted">
                     {selections.aesthetic.length}/2 Selected
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
@@ -804,8 +834,8 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleMulti("aesthetic", option.id, 2)}
                           className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
                             isSelected
-                              ? "border-blue-400/70 bg-white/5 text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]"
-                              : "border-border bg-surface text-muted hover:border-white/30 hover:text-white"
+                              ? "border-blue-500/60 bg-blue-50 text-blue-700 shadow-[0_0_14px_rgba(59,130,246,0.2)]"
+                              : "border-border bg-surface text-muted hover:border-slate-300 hover:bg-surface-strong hover:text-foreground"
                           }`}
                         >
                           {option.label}
@@ -827,7 +857,7 @@ export default function ManifestationQuiz() {
                   <p className="mt-2 text-sm text-muted">
                     Choose up to two definitions.
                   </p>
-                  <p className="mt-4 text-xs text-white/60">
+                  <p className="mt-4 text-xs text-muted">
                     {selections.wealthDefinition.length}/2 Selected
                   </p>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -844,8 +874,8 @@ export default function ManifestationQuiz() {
                           }
                           className={`rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
-                              : "border-border bg-surface hover:border-white/30"
+                              ? "border-blue-500/60 bg-blue-50 shadow-[0_0_16px_rgba(59,130,246,0.25)]"
+                              : "border-border bg-surface hover:border-slate-300 hover:bg-surface-strong"
                           }`}
                         >
                           <h3 className="text-base font-semibold">{option.title}</h3>
@@ -870,7 +900,7 @@ export default function ManifestationQuiz() {
                   <p className="mt-2 text-sm text-muted">
                     Select up to three items.
                   </p>
-                  <p className="mt-4 text-xs text-white/60">
+                  <p className="mt-4 text-xs text-muted">
                     {selections.inventory.length}/3 Selected
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
@@ -883,8 +913,8 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleMulti("inventory", item, 3)}
                           className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
                             isSelected
-                              ? "border-blue-400/60 bg-white text-black shadow-[0_0_14px_rgba(59,130,246,0.3)]"
-                              : "border-border bg-surface text-muted hover:border-white/30 hover:text-white"
+                              ? "border-blue-500/60 bg-blue-50 text-blue-700 shadow-[0_0_12px_rgba(59,130,246,0.25)]"
+                              : "border-border bg-surface text-muted hover:border-slate-300 hover:bg-surface-strong hover:text-foreground"
                           }`}
                         >
                           {item}
@@ -897,7 +927,7 @@ export default function ManifestationQuiz() {
                       <button
                         type="button"
                         onClick={() => setShowSuggestionModal(true)}
-                        className="text-left text-xs font-semibold text-blue-400 transition hover:text-blue-300"
+                        className="text-left text-xs font-semibold text-blue-600 transition hover:text-blue-500"
                       >
                         No words you like? Share your suggestion with us.
                       </button>
@@ -907,7 +937,7 @@ export default function ManifestationQuiz() {
                           setShowAllInventory((prev) => !prev)
                         }
                         aria-expanded={showAllInventory}
-                        className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:border-white/35 hover:text-white"
+                        className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted transition hover:border-slate-300 hover:text-foreground"
                       >
                         {showAllInventory ? "Show less" : "Show all"}
                       </button>
@@ -937,8 +967,8 @@ export default function ManifestationQuiz() {
                           onClick={() => toggleSingle("pov", option.id)}
                           className={`flex h-full flex-col gap-2 rounded-2xl border p-5 text-left transition ${
                             isSelected
-                              ? "border-blue-400/70 bg-white/5 shadow-[0_0_20px_rgba(59,130,246,0.35)]"
-                              : "border-border bg-surface hover:border-white/30"
+                              ? "border-blue-500/60 bg-blue-50 shadow-[0_0_16px_rgba(59,130,246,0.25)]"
+                              : "border-border bg-surface hover:border-slate-300 hover:bg-surface-strong"
                           }`}
                         >
                           <div>
@@ -963,7 +993,7 @@ export default function ManifestationQuiz() {
                   <p className="mt-2 text-sm text-muted">
                     Optional. We&apos;ll overlay this on your image later.
                   </p>
-                  <p className="mt-2 text-xs text-white/60">
+                  <p className="mt-2 text-xs text-muted">
                     Tip: If you are religious, you can include a Bible verse or
                     other spiritual phrase here.
                   </p>
@@ -973,7 +1003,7 @@ export default function ManifestationQuiz() {
                       className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
                     >
                       Affirmation
-                      <span className="ml-1 text-white/50">(optional)</span>
+                      <span className="ml-1 text-muted">(optional)</span>
                     </label>
                     <input
                       id="affirmation"
@@ -984,7 +1014,7 @@ export default function ManifestationQuiz() {
                           affirmation: event.target.value,
                         }))
                       }
-                      className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-white/30"
+                      className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                       placeholder="Unstoppable"
                       type="text"
                       autoComplete="off"
@@ -1007,13 +1037,13 @@ export default function ManifestationQuiz() {
             <p className="mt-2 text-sm text-muted sm:text-base">
               Tap to claim the high-resolution pack.
             </p>
-            <div className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-surface">
+            <div className="relative mt-8 overflow-hidden rounded-3xl border border-border bg-surface">
               <img
                 src="https://placehold.co/1200x700"
                 alt="Generated manifestation preview"
                 className="h-full w-full object-cover"
               />
-              <div className="pointer-events-none absolute bottom-5 right-6 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/40">
+              <div className="pointer-events-none absolute bottom-5 right-6 text-[10px] font-semibold uppercase tracking-[0.35em] text-muted">
                 Manifest Your Reality
               </div>
             </div>
@@ -1021,14 +1051,14 @@ export default function ManifestationQuiz() {
               <button
                 type="button"
                 onClick={() => setShowGate(true)}
-                className="flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black shadow-[0_0_24px_rgba(255,255,255,0.25)] transition hover:bg-zinc-200 animate-pulse"
+                className="flex items-center justify-center rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background shadow-[0_0_24px_rgba(59,130,246,0.2)] transition hover:bg-foreground/90 animate-pulse"
               >
                 Claim This Reality
               </button>
               <button
                 type="button"
                 onClick={handleAdjustVibe}
-                className="flex items-center justify-center rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+                className="flex items-center justify-center rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition hover:border-slate-300"
               >
                 Adjust Vibe
               </button>
@@ -1045,7 +1075,7 @@ export default function ManifestationQuiz() {
               Choose your manifestation pack.
             </p>
             <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-3xl border border-white/10 bg-surface p-6">
+              <div className="rounded-3xl border border-border bg-surface p-6">
                 <img
                   src="https://placehold.co/800x500"
                   alt="Free manifestation preview"
@@ -1053,35 +1083,35 @@ export default function ManifestationQuiz() {
                 />
                 <button
                   type="button"
-                  className="mt-6 w-full rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/35 hover:bg-white/10"
+                  className="mt-6 w-full rounded-full border border-border bg-white px-6 py-3 text-sm font-semibold text-foreground transition hover:border-slate-300 hover:bg-surface-strong"
                 >
                   Download Free Image
                 </button>
               </div>
-              <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6">
+              <div className="rounded-3xl border border-border bg-surface p-6 shadow-[0_25px_60px_rgba(15,23,42,0.12)]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Upgrade Pack</h3>
-                  <span className="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/80">
+                  <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted">
                     $4.99
                   </span>
                 </div>
-                <div className="mt-4 space-y-3 text-sm text-white/80">
+                <div className="mt-4 space-y-3 text-sm text-muted">
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-white" />
+                    <Check className="h-4 w-4 text-blue-500" />
                     4K Upscaled Wallpaper (No Watermark)
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-white" />
+                    <Check className="h-4 w-4 text-blue-500" />
                     Phone &amp; Desktop Crops
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-white" />
+                    <Check className="h-4 w-4 text-blue-500" />
                     Shadow Work Guide PDF
                   </div>
                 </div>
                 <button
                   type="button"
-                  className="mt-6 w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black shadow-[0_0_26px_rgba(255,255,255,0.25)] transition hover:bg-zinc-200"
+                  className="mt-6 w-full rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background shadow-[0_0_26px_rgba(59,130,246,0.2)] transition hover:bg-foreground/90"
                 >
                   Unlock Full Pack ($4.99)
                 </button>
@@ -1091,12 +1121,12 @@ export default function ManifestationQuiz() {
         )}
 
         {phase === "quiz" && (
-          <div className="mt-12 flex items-center justify-center">
+          <div className="mt-12 flex w-full items-center justify-start">
             <button
               type="button"
               onClick={handleNext}
               disabled={!canNext}
-              className="flex items-center gap-2 rounded-full bg-white px-6 py-2 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/60 disabled:hover:bg-white/20"
+              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-2 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-foreground/20 disabled:text-foreground/40 disabled:hover:bg-foreground/20"
             >
               {isLastStep ? "Generate Vision" : "Next"}
               {!isLastStep && <ArrowRight className="h-4 w-4" />}
@@ -1107,22 +1137,22 @@ export default function ManifestationQuiz() {
 
       {showSuggestionModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
           onClick={() => setShowSuggestionModal(false)}
           aria-hidden="true"
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-black/85 p-6 text-white shadow-[0_40px_120px_rgba(0,0,0,0.6)] backdrop-blur"
+            className="w-full max-w-md rounded-3xl border border-border bg-white p-6 text-foreground shadow-[0_40px_120px_rgba(15,23,42,0.18)] backdrop-blur"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                   Suggest a word
                 </p>
-                <p className="mt-2 text-sm text-white/70">
+                <p className="mt-2 text-sm text-muted">
                   Share a word or object that fits your manifestation.
                 </p>
               </div>
@@ -1130,7 +1160,7 @@ export default function ManifestationQuiz() {
                 type="button"
                 onClick={() => setShowSuggestionModal(false)}
                 aria-label="Close"
-                className="rounded-full border border-white/15 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
+                className="rounded-full border border-border p-2 text-muted transition hover:border-slate-300 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1138,7 +1168,7 @@ export default function ManifestationQuiz() {
             <div className="mt-6">
               <label
                 htmlFor="inventory-suggestion"
-                className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60"
+                className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
               >
                 Suggested word
               </label>
@@ -1146,7 +1176,7 @@ export default function ManifestationQuiz() {
                 id="inventory-suggestion"
                 value={suggestionText}
                 onChange={(event) => setSuggestionText(event.target.value)}
-                className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+                className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                 placeholder="e.g. Pearl earrings"
                 type="text"
                 autoComplete="off"
@@ -1159,7 +1189,7 @@ export default function ManifestationQuiz() {
                   setSuggestionText("");
                   setShowSuggestionModal(false);
                 }}
-                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/60 disabled:hover:bg-white/20"
+                className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-foreground/20 disabled:text-foreground/40 disabled:hover:bg-foreground/20"
                 disabled={suggestionText.trim().length === 0}
               >
                 Send suggestion
@@ -1170,14 +1200,14 @@ export default function ManifestationQuiz() {
       )}
 
       {showGate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-black/80 p-6 text-left text-white backdrop-blur">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-white p-6 text-left text-foreground shadow-[0_40px_120px_rgba(15,23,42,0.18)] backdrop-blur">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted">
                   Save to your History.
                 </p>
-                <p className="mt-2 text-sm text-white/70">
+                <p className="mt-2 text-sm text-muted">
                   We&apos;ll send the high-res vision board and your Shadow Work
                   analysis to your inbox.
                 </p>
@@ -1185,7 +1215,7 @@ export default function ManifestationQuiz() {
               <button
                 type="button"
                 onClick={() => setShowGate(false)}
-                className="rounded-full border border-white/15 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
+                className="rounded-full border border-border p-2 text-muted transition hover:border-slate-300 hover:text-foreground"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -1194,7 +1224,7 @@ export default function ManifestationQuiz() {
             <div className="mt-6">
               <label
                 htmlFor="gate-email"
-                className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60"
+                className="text-xs font-semibold uppercase tracking-[0.3em] text-muted"
               >
                 Email Address
               </label>
@@ -1207,7 +1237,7 @@ export default function ManifestationQuiz() {
                     email: event.target.value,
                   }))
                 }
-                className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+                className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-blue-500/30"
                 placeholder="you@email.com"
                 type="email"
                 autoComplete="email"
@@ -1217,7 +1247,7 @@ export default function ManifestationQuiz() {
               type="button"
               onClick={handleUnlock}
               disabled={!isValidEmail}
-              className="mt-6 w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/60 disabled:hover:bg-white/20"
+              className="mt-6 w-full rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-foreground/20 disabled:text-foreground/40 disabled:hover:bg-foreground/20"
             >
               Unlock
             </button>

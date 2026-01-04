@@ -12,14 +12,14 @@ export default function CookiesPage() {
           <p className="text-sm text-muted">Effective date: 2026-01-01</p>
         </div>
 
-        <section className="space-y-4 text-sm text-white/80">
+        <section className="space-y-4 text-sm text-muted">
           <p>
             This Cookie Policy explains how The Mooody uses cookies and
             similar technologies.
           </p>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               1) What Are Cookies
             </h2>
             <p className="mt-2">
@@ -29,16 +29,20 @@ export default function CookiesPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               2) Cookies We Use
             </h2>
-            <p className="mt-2 font-semibold text-white">Essential (Always On)</p>
+            <p className="mt-2 font-semibold text-foreground">
+              Essential (Always On)
+            </p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>Authentication cookies to keep you signed in.</li>
               <li>Security cookies to protect the service.</li>
             </ul>
 
-            <p className="mt-4 font-semibold text-white">Analytics (Optional)</p>
+            <p className="mt-4 font-semibold text-foreground">
+              Analytics (Optional)
+            </p>
             <p className="mt-2">
               We only enable analytics after you consent. This helps us improve
               the product.
@@ -46,7 +50,7 @@ export default function CookiesPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               3) How to Manage Cookies
             </h2>
             <p className="mt-2">
@@ -56,7 +60,9 @@ export default function CookiesPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">4) Updates</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              4) Updates
+            </h2>
             <p className="mt-2">
               We may update this policy. Material changes will be communicated.
             </p>

@@ -12,14 +12,14 @@ export default function PrivacyPage() {
           <p className="text-sm text-muted">Effective date: 2026-01-01</p>
         </div>
 
-        <section className="space-y-4 text-sm text-white/80">
+        <section className="space-y-4 text-sm text-muted">
           <p>
             This Privacy Policy explains how The Mooody collects, uses, and
             protects your personal data.
           </p>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               1) What We Collect
             </h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               2) How We Use Your Data
             </h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               3) Legal Bases (EU/EEA)
             </h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               4) Sharing & Third Parties
             </h2>
             <p className="mt-2">
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               5) Public Content
             </h2>
             <p className="mt-2">
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               6) Data Retention
             </h2>
             <p className="mt-2">
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-foreground">
               7) Your Rights (EU/EEA)
             </h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -101,7 +101,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">8) Security</h2>
+            <h2 className="text-base font-semibold text-foreground">8) Security</h2>
             <p className="mt-2">
               We use industry-standard safeguards, including access controls
               and encryption in transit.
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">9) Children</h2>
+            <h2 className="text-base font-semibold text-foreground">9) Children</h2>
             <p className="mt-2">
               The service is intended for users aged 14+. If you believe a
               minor has provided data, contact us.
@@ -117,7 +117,7 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-white">10) Changes</h2>
+            <h2 className="text-base font-semibold text-foreground">10) Changes</h2>
             <p className="mt-2">
               We may update this policy. Material changes will be communicated.
             </p>
