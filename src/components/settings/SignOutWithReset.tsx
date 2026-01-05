@@ -2,9 +2,6 @@
 
 import { useTransition } from "react";
 import type { ReactNode } from "react";
-import { useClerk } from "@clerk/nextjs";
-
-const STORAGE_KEY = "moody-onboarding";
 
 type SignOutWithResetProps = {
   redirectUrl?: string;
@@ -17,26 +14,11 @@ export function SignOutWithReset({
   className,
   children,
 }: SignOutWithResetProps) {
-  const { signOut } = useClerk();
   const [isPending, startTransition] = useTransition();
 
   const handleSignOut = () => {
     startTransition(async () => {
-      try {
-        sessionStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // Ignore storage access errors.
-      }
-      if (process.env.NEXT_PUBLIC_DEBUG_ONBOARDING === "true") {
-        console.info("[onboarding] storage cleared", { reason: "sign-out" });
-      }
-      try {
-        await signOut({ redirectUrl });
-      } catch (error) {
-        console.error("Failed to sign out", error);
-        window.location.assign(redirectUrl);
-      }
+      window.location.assign(redirectUrl);
     });
   };
 

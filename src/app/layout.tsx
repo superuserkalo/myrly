@@ -1,4 +1,3 @@
-import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Fraunces, Instrument_Serif, Inter } from "next/font/google";
 import CookieBanner from "@/components/CookieBanner";
@@ -41,14 +40,8 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${instrumentSerif.variable} ${fraunces.variable} antialiased`}
       >
-        <ClerkProvider
-          appearance={{
-            cssLayerName: "clerk",
-          }}
-        >
-          {children}
-          <CookieBanner />
-        </ClerkProvider>
+        {children}
+        <CookieBanner />
       </body>
     </html>
   );

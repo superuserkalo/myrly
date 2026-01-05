@@ -18,13 +18,11 @@ export function DangerZone() {
     startTransition(async () => {
       try {
         const result = await deleteUserAccount();
+        if (result?.message) {
+          setErrorMessage(result.message);
+          return;
+        }
         if (result?.success) {
-          try {
-            sessionStorage.removeItem("moody-onboarding");
-            localStorage.removeItem("moody-onboarding");
-          } catch {
-            // Ignore storage access errors.
-          }
           window.location.assign("/");
         }
       } catch (error) {

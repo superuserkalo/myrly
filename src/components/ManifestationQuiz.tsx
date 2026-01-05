@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-} from "@clerk/nextjs";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 
@@ -502,24 +498,18 @@ export default function ManifestationQuiz() {
             />
           </a>
           <div className="flex items-center gap-2">
-            <SignedOut>
-              <SignInButton forceRedirectUrl="/dashboard">
-                <button
-                  type="button"
-                  className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
-                >
-                  Login
-                </button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <a
-                href="/dashboard"
-                className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
-              >
-                Open App
-              </a>
-            </SignedIn>
+            <Link
+              href="/sign-in"
+              className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
+            >
+              Login
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"
+            >
+              Open App
+            </Link>
             <a
               href="/"
               className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-foreground transition hover:border-black/20 hover:bg-surface-strong"

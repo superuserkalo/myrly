@@ -1,11 +1,5 @@
 "use client";
 
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-} from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -46,44 +40,26 @@ export default function SiteHeader() {
           />
         </Link>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
-          <SignedOut>
-            <SignInButton forceRedirectUrl="/dashboard">
-              <button
-                type="button"
-                className={`cursor-pointer rounded-full border border-[color:var(--charcoal)] bg-[color:var(--white)] font-semibold text-foreground transition-all duration-500 ease-in-out hover:bg-surface-strong ${
-                  isScrolled
-                    ? "px-2 py-0.5 text-[10px] sm:px-4 sm:py-2 sm:text-sm"
-                    : "px-2.5 py-1 text-[10px] sm:px-5 sm:py-2.5 sm:text-sm"
-                }`}
-              >
-                Login
-              </button>
-            </SignInButton>
-            <SignUpButton forceRedirectUrl="/onboarding">
-              <button
-                type="button"
-                className={`cursor-pointer rounded-full border border-[color:var(--charcoal)] bg-[color:var(--orange)] font-semibold text-[color:var(--charcoal)] transition-all duration-500 ease-in-out hover:brightness-95 ${
-                  isScrolled
-                    ? "px-2.5 py-0.5 text-[10px] sm:px-5 sm:py-2 sm:text-sm"
-                    : "px-3 py-1 text-[10px] sm:px-6 sm:py-2.5 sm:text-sm"
-                }`}
-              >
-                Try for Free
-              </button>
-            </SignUpButton>
-          </SignedOut>
-          <SignedIn>
-            <Link
-              href="/dashboard"
-              className={`cursor-pointer rounded-full border border-[color:var(--charcoal)] bg-[color:var(--white)] font-semibold text-foreground transition-all duration-500 ease-in-out hover:bg-surface-strong ${
-                isScrolled
-                  ? "px-2.5 py-0.5 text-[10px] sm:px-5 sm:py-2 sm:text-sm"
-                  : "px-3 py-1 text-[10px] sm:px-6 sm:py-2.5 sm:text-sm"
-              }`}
-            >
-              Open App
-            </Link>
-          </SignedIn>
+          <Link
+            href="/sign-in"
+            className={`cursor-pointer rounded-full border border-[color:var(--charcoal)] bg-[color:var(--white)] font-semibold text-foreground transition-all duration-500 ease-in-out hover:bg-surface-strong ${
+              isScrolled
+                ? "px-2 py-0.5 text-[10px] sm:px-4 sm:py-2 sm:text-sm"
+                : "px-2.5 py-1 text-[10px] sm:px-5 sm:py-2.5 sm:text-sm"
+            }`}
+          >
+            Login
+          </Link>
+          <Link
+            href="/sign-up"
+            className={`cursor-pointer rounded-full border border-[color:var(--charcoal)] bg-[color:var(--orange)] font-semibold text-[color:var(--charcoal)] transition-all duration-500 ease-in-out hover:brightness-95 ${
+              isScrolled
+                ? "px-2.5 py-0.5 text-[10px] sm:px-5 sm:py-2 sm:text-sm"
+                : "px-3 py-1 text-[10px] sm:px-6 sm:py-2.5 sm:text-sm"
+            }`}
+          >
+            Try for Free
+          </Link>
         </div>
       </div>
     </header>

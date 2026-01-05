@@ -2,12 +2,6 @@
 
 import Link from "next/link";
 import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-} from "@clerk/nextjs";
-import {
   Bell,
   ChevronDown,
   Folder,
@@ -99,119 +93,89 @@ export default function DashboardPage() {
           <div className="mt-6 text-[11px] text-white/40">Starred</div>
 
           <div className="mt-10 flex items-center gap-2 text-xs text-white/70">
-            <SignedIn>
-              <Link
-                href="/dashboard/settings"
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-white/5"
-              >
-                <User className="h-4 w-4" />
-                <span>Account</span>
-              </Link>
-            </SignedIn>
+            <Link
+              href="/dashboard/settings"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-white/5"
+            >
+              <User className="h-4 w-4" />
+              <span>Account</span>
+            </Link>
           </div>
         </aside>
 
         <section className="flex-1 px-8 py-6">
-          <SignedOut>
-            <div className="mx-auto mt-20 max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
-              <p className="text-sm text-white/70">
-                Sign in to see your boards and collections.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                <SignInButton forceRedirectUrl="/dashboard">
-                  <button
-                    type="button"
-                    className="rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white"
-                  >
-                    Login
-                  </button>
-                </SignInButton>
-                <SignUpButton forceRedirectUrl="/onboarding">
-                  <button
-                    type="button"
-                    className="rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white"
-                  >
-                    Try for Free
-                  </button>
-                </SignUpButton>
-              </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-lg font-semibold text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-500 text-sm">
+                g
+              </span>
+              <span>gantchevkaloyan&apos;s team</span>
+              <ChevronDown className="h-4 w-4 text-white/60" />
             </div>
-          </SignedOut>
-
-          <SignedIn>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-lg font-semibold text-white">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-500 text-sm">
-                  g
-                </span>
-                <span>gantchevkaloyan&apos;s team</span>
-                <ChevronDown className="h-4 w-4 text-white/60" />
-              </div>
-              <div className="flex items-center gap-3">
-                <button className="rounded-md bg-blue-500 px-4 py-2 text-xs font-semibold text-white">
-                  + Project
-                </button>
-                <button className="rounded-md border border-white/20 px-4 py-2 text-xs font-semibold text-white/80">
-                  Share
-                </button>
-                <button className="rounded-md border border-white/10 p-2 text-white/70">
-                  <Bell className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-2 text-xs text-white/60">
-              <button className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5">
-                Last modified
+            <div className="flex items-center gap-3">
+              <button className="rounded-md bg-blue-500 px-4 py-2 text-xs font-semibold text-white">
+                + Project
               </button>
-              <button className="rounded-md border border-white/10 bg-white/5 p-1.5">
-                <Grid2X2 className="h-4 w-4" />
+              <button className="rounded-md border border-white/20 px-4 py-2 text-xs font-semibold text-white/80">
+                Share
               </button>
-              <button className="rounded-md border border-white/10 bg-white/5 p-1.5">
-                <List className="h-4 w-4" />
+              <button className="rounded-md border border-white/10 p-2 text-white/70">
+                <Bell className="h-4 w-4" />
               </button>
             </div>
+          </div>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              <Link
-                href="/board"
-                className="group rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20"
-              >
-                <div className="grid grid-cols-2 gap-3 rounded-xl bg-[#1f1f1f] p-3">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                      key={`preview-${index}`}
-                      className="h-16 rounded-lg bg-[#2b2b2b]"
-                    />
-                  ))}
-                  <div className="flex h-16 items-center justify-center rounded-lg bg-[#2b2b2b] text-blue-400">
-                    +
-                  </div>
-                </div>
-                <div className="mt-3 text-sm font-semibold text-white">
-                  Team project
-                </div>
-                <div className="text-xs text-white/50">2 files</div>
-              </Link>
+          <div className="mt-6 flex items-center justify-end gap-2 text-xs text-white/60">
+            <button className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5">
+              Last modified
+            </button>
+            <button className="rounded-md border border-white/10 bg-white/5 p-1.5">
+              <Grid2X2 className="h-4 w-4" />
+            </button>
+            <button className="rounded-md border border-white/10 bg-white/5 p-1.5">
+              <List className="h-4 w-4" />
+            </button>
+          </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="grid grid-cols-2 gap-3 rounded-xl bg-[#1f1f1f] p-3">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div
-                      key={`upgrade-${index}`}
-                      className="h-16 rounded-lg bg-[#2b2b2b]"
-                    />
-                  ))}
-                </div>
-                <div className="mt-3 text-sm font-semibold text-white">
-                  Upgrade to create more projects
-                </div>
-                <div className="text-xs text-white/50">
-                  Get unlimited everything on the Professional plan.
+          <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <Link
+              href="/board"
+              className="group rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20"
+            >
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-[#1f1f1f] p-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`preview-${index}`}
+                    className="h-16 rounded-lg bg-[#2b2b2b]"
+                  />
+                ))}
+                <div className="flex h-16 items-center justify-center rounded-lg bg-[#2b2b2b] text-blue-400">
+                  +
                 </div>
               </div>
+              <div className="mt-3 text-sm font-semibold text-white">
+                Team project
+              </div>
+              <div className="text-xs text-white/50">2 files</div>
+            </Link>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-[#1f1f1f] p-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={`upgrade-${index}`}
+                    className="h-16 rounded-lg bg-[#2b2b2b]"
+                  />
+                ))}
+              </div>
+              <div className="mt-3 text-sm font-semibold text-white">
+                Upgrade to create more projects
+              </div>
+              <div className="text-xs text-white/50">
+                Get unlimited everything on the Professional plan.
+              </div>
             </div>
-          </SignedIn>
+          </div>
         </section>
       </div>
     </div>

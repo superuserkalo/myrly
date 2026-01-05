@@ -23,7 +23,9 @@ const pricingPlans = [
       "Personal Asset Library",
       "5 Background Removals per day",
       "Up to 5 Boards",
+      "Live Collaboration (up to 25 people)",
       "Private Boards",
+      "End-to-End Encrypted (E2EE)",
     ],
     cta: "Get started",
     highlight: false,
@@ -43,11 +45,11 @@ const pricingPlans = [
     features: [
       "Up to 2k & 4k Upscale",
       "Pro AI Models",
+      "Advanced AI Workflows",
       "Priority Image Processing",
       "Unlimited Background Removals",
       "2-month credit bucket",
       "Advanced Export Options",
-      "Live Collaboration",
       "Unlimited Boards",
       "Priority support",
       "Commercial rights",
@@ -56,8 +58,8 @@ const pricingPlans = [
     highlight: true,
   },
   {
-    id: "enterprise",
-    name: "Business",
+    id: "team",
+    name: "Team",
     badge: null,
     description: "For teams of creators with more needs.",
     monthly: "$24.99",
@@ -73,7 +75,6 @@ const pricingPlans = [
       "Team Asset Management",
       "Pooled Team Credit Wallet",
       "Centralized Admin & Billing",
-      "SSO & Business Security",
       "Up to 8K Ultra-HD Upscale",
       "Dedicated Priority Support",
     ],
@@ -225,7 +226,7 @@ const featureGroups = [
     rows: [
       {
         label: "Live collaboration",
-        free: textValue("—", "muted"),
+        free: checkValue,
         pro: checkValue,
         enterprise: checkValue,
       },
@@ -300,16 +301,16 @@ const featureGroups = [
         enterprise: textValue("Team Wallet"),
       },
       {
-        label: "SSO / SAML",
-        free: textValue("—", "muted"),
-        pro: textValue("—", "muted"),
-        enterprise: checkValue,
-      },
-      {
         label: "Data privacy",
         free: textValue("Private Boards"),
         pro: textValue("Private Boards"),
         enterprise: textValue("Stealth Mode (NDA)"),
+      },
+      {
+        label: "End-to-end encryption (E2EE)",
+        free: checkValue,
+        pro: checkValue,
+        enterprise: checkValue,
       },
       {
         label: "Support",
@@ -384,7 +385,13 @@ const faqItems = [
       "Basic usage dashboards (accessible by admin only)",
     ],
     footer:
-      "For bulk pricing discounts, advanced IT controls and compliance (SSO/SAML, SOC 2 Type II and ISO 27001 compliance, enforced HIPAA compliance, or enforced Zero Data Retention), or advanced usage dashboards, reach out to our Sales team to upgrade to Enterprise.",
+      "For bulk pricing discounts, advanced IT controls and compliance (SOC 2 Type II and ISO 27001 compliance, enforced HIPAA compliance, or enforced Zero Data Retention), or advanced usage dashboards, reach out to our Sales team to upgrade to Enterprise.",
+  },
+  {
+    question: "Refund",
+    paragraphs: [
+      "Refunds are easy. If you upgrade and it isn’t the right fit, reach out through Settings → Billing or our Support Portal and we’ll take care of it quickly.",
+    ],
   },
 ];
 
@@ -454,27 +461,41 @@ export default function PricingPage() {
         <section className="mt-8 grid gap-6 lg:grid-cols-3">
           {pricingPlans.map((plan) => {
             const isYearly = billingCycle === "yearly";
-            const price = isYearly ? plan.yearly : plan.monthly;
+            const isCustomPricing = plan.customPricing === true;
+            const price = isCustomPricing
+              ? plan.monthly
+              : isYearly
+                ? plan.yearly
+                : plan.monthly;
             const periodLabel = isYearly ? "/ yr" : "/ mo";
             const billingNote = isYearly && plan.billingNoteYearly
               ? plan.billingNoteYearly
               : plan.billingNote;
             const isHighlighted = plan.highlight;
-            const isEnterprise = plan.id === "enterprise";
+            const isTeamCard = plan.id === "team";
+            const isDarkCard = plan.id === "enterprise";
+            const nameTone = isDarkCard
+              ? "text-white"
+              : "text-[color:var(--charcoal)]";
+            const mutedTone = isDarkCard
+              ? "text-white/70"
+              : "text-[color:var(--grey)]";
             return (
               <div
                 key={plan.id}
                 className={`flex h-full flex-col justify-between rounded-[30px] border-2 px-6 py-7 ${
                   isHighlighted
                     ? "border-[color:var(--charcoal)] bg-[color:var(--periwinkle)]"
-                    : isEnterprise
-                      ? "border-[color:var(--charcoal)] bg-[color:var(--white)]"
-                      : "border-[color:var(--grey)]/50 bg-[color:var(--white)]"
+                    : isDarkCard
+                      ? "border-[color:var(--charcoal)] bg-[color:var(--charcoal)] text-white"
+                      : isTeamCard
+                        ? "border-[color:var(--charcoal)] bg-[color:var(--white)]"
+                        : "border-[color:var(--grey)]/50 bg-[color:var(--white)]"
                 }`}
               >
                 <div>
                   <div className="flex items-center gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--charcoal)]">
+                    <p className={`text-xs font-semibold uppercase tracking-[0.3em] ${nameTone}`}>
                       {plan.name}
                     </p>
                     {plan.badge && (
@@ -485,51 +506,58 @@ export default function PricingPage() {
                   </div>
                   <p
                     className={`mt-2 text-sm ${
-                      isHighlighted
-                        ? "text-[color:var(--charcoal)]"
-                        : "text-[color:var(--grey)]"
+                      isHighlighted ? "text-[color:var(--charcoal)]" : mutedTone
                     }`}
                   >
                     {plan.description}
                   </p>
                   <div className="mt-6 flex items-baseline gap-2">
-                    <span className="text-3xl font-semibold">{price}</span>
-                    {plan.seatBased && (
+                    <span
+                      className={`text-3xl font-semibold ${
+                        isDarkCard ? "text-white" : ""
+                      }`}
+                    >
+                      {price}
+                    </span>
+                    {plan.seatBased && !isCustomPricing && (
                       <span
                         className={`text-xs font-normal ${
                           isHighlighted
                             ? "text-[color:var(--charcoal)]"
-                            : "text-[color:var(--grey)]"
+                            : mutedTone
                         }`}
                       >
                         / seat
                       </span>
                     )}
-                    <span
-                      className={`text-xs ${
-                        isHighlighted
-                          ? "text-[color:var(--charcoal)]"
-                          : "text-[color:var(--grey)]"
-                      }`}
-                    >
-                      {periodLabel}
-                    </span>
+                    {!isCustomPricing && (
+                      <span
+                        className={`text-xs ${
+                          isHighlighted
+                            ? "text-[color:var(--charcoal)]"
+                            : mutedTone
+                        }`}
+                      >
+                        {periodLabel}
+                      </span>
+                    )}
                   </div>
                   <p
                     className={`mt-2 text-xs ${
-                      isHighlighted
-                        ? "text-[color:var(--charcoal)]"
-                        : "text-[color:var(--grey)]"
+                      isHighlighted ? "text-[color:var(--charcoal)]" : mutedTone
                     }`}
                   >
                     {billingNote}
                   </p>
+                  {plan.id === "visitor" && (
+                    <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-[color:var(--grey)]">
+                      Draft mode only
+                    </p>
+                  )}
                   {isYearly && plan.yearlyNote && (
                     <p
                       className={`mt-1 text-xs ${
-                        isHighlighted
-                          ? "text-[color:var(--charcoal)]"
-                          : "text-[color:var(--grey)]"
+                        isHighlighted ? "text-[color:var(--charcoal)]" : mutedTone
                       }`}
                     >
                       {plan.yearlyNote}
@@ -537,14 +565,28 @@ export default function PricingPage() {
                   )}
                   <ul className="mt-6 space-y-2 text-sm">
                     {plan.inherits && (
-                      <li className="flex items-start gap-2 font-semibold text-[color:var(--charcoal)]">
+                      <li
+                        className={`flex items-start gap-2 font-semibold ${
+                          isDarkCard ? "text-white" : "text-[color:var(--charcoal)]"
+                        }`}
+                      >
                         <span>{`${plan.inherits}:`}</span>
                       </li>
                     )}
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 text-[color:var(--charcoal)]" />
-                        <span className="text-[color:var(--charcoal)]">{feature}</span>
+                        <Check
+                          className={`mt-0.5 h-4 w-4 ${
+                            isDarkCard ? "text-white" : "text-[color:var(--charcoal)]"
+                          }`}
+                        />
+                        <span
+                          className={`${
+                            isDarkCard ? "text-white" : "text-[color:var(--charcoal)]"
+                          }`}
+                        >
+                          {feature}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -554,7 +596,9 @@ export default function PricingPage() {
                   className={`mt-8 w-full rounded-full px-4 py-2 text-sm font-semibold transition ${
                     isHighlighted
                       ? "border-2 border-[color:var(--charcoal)] bg-[color:var(--orange)] text-[color:var(--charcoal)] hover:brightness-95"
-                      : "border-2 border-[color:var(--charcoal)]/30 text-[color:var(--charcoal)] hover:border-[color:var(--charcoal)]"
+                      : isDarkCard
+                        ? "border-2 border-white/80 bg-white text-[color:var(--charcoal)] hover:brightness-95"
+                        : "border-2 border-[color:var(--charcoal)]/30 text-[color:var(--charcoal)] hover:border-[color:var(--charcoal)]"
                   }`}
                 >
                   {plan.cta}
@@ -565,7 +609,7 @@ export default function PricingPage() {
         </section>
 
         <section id="student" className="mt-8">
-          <div className="flex flex-col items-start gap-6 rounded-[32px] border-2 border-[color:var(--charcoal)] bg-[color:var(--orange)] px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col items-start gap-6 rounded-[32px] border-2 border-[color:var(--charcoal)] bg-[color:var(--white)] px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold">Student Discount</h3>
               <p className="mt-1 text-sm text-[color:var(--charcoal)]">
@@ -574,10 +618,44 @@ export default function PricingPage() {
             </div>
             <button
               type="button"
-              className="rounded-full border-2 border-[color:var(--charcoal)] bg-[color:var(--periwinkle)] px-5 py-2 text-sm font-semibold text-[color:var(--charcoal)] transition hover:brightness-95"
+              className="rounded-full border-2 border-[color:var(--charcoal)] bg-[color:var(--orange)] px-5 py-2 text-sm font-semibold text-[color:var(--charcoal)] transition hover:brightness-95"
             >
               Get started
             </button>
+          </div>
+        </section>
+
+        <section className="mt-12">
+          <div className="rounded-[32px] bg-[color:var(--charcoal)] px-6 py-10 text-[color:var(--white)] sm:px-10">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <h2 className="text-2xl font-semibold">Built for Brands & Scale.</h2>
+                <p className="mt-3 text-sm text-[color:var(--white)]/80">
+                  Need more than standard generations? We build custom
+                  infrastructure for agencies requiring:
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-white/70 px-5 py-2 text-sm font-semibold text-white transition hover:border-white"
+              >
+                Contact Sales
+              </button>
+            </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {[
+                "Fine-Tuned Models: Train AI on your brand assets.",
+                "Dedicated GPU Clusters: Zero wait times.",
+                "SSO & SAML: Enterprise-grade access.",
+                "Advanced access controls for large teams.",
+                "Data deletion policies & compliance support.",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[color:var(--white)]" />
+                  <span className="text-[color:var(--white)]/90">{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -592,7 +670,7 @@ export default function PricingPage() {
             {refillPacks.map((pack) => (
               <div
                 key={pack.id}
-                className="flex flex-col gap-4 rounded-[24px] border-2 border-[color:var(--charcoal)]/35 bg-white/90 p-5"
+                className="flex flex-col gap-4 rounded-[24px] border-2 border-[color:var(--charcoal)]/35 bg-[color:var(--white)] p-5"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
@@ -615,45 +693,12 @@ export default function PricingPage() {
                 </div>
                 <button
                   type="button"
-                  className="w-full rounded-full border-2 border-[color:var(--charcoal)] bg-[color:var(--periwinkle)] px-4 py-2 text-xs font-semibold text-[color:var(--charcoal)] transition hover:brightness-95"
+                  className="w-full rounded-full border-2 border-[color:var(--charcoal)] bg-[color:var(--orange)] px-4 py-2 text-xs font-semibold text-[color:var(--charcoal)] transition hover:brightness-95"
                 >
                   Buy credits
                 </button>
               </div>
             ))}
-          </div>
-        </section>
-
-        <section className="mt-16">
-          <div className="rounded-[32px] bg-[color:var(--charcoal)] px-6 py-10 text-[color:var(--white)] sm:px-10">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-2xl">
-                <h2 className="text-2xl font-semibold">Built for Brands & Scale.</h2>
-                <p className="mt-3 text-sm text-[color:var(--white)]/80">
-                  Need more than standard generations? We build custom
-                  infrastructure for agencies requiring:
-                </p>
-              </div>
-              <button
-                type="button"
-                className="rounded-full border border-white/70 px-5 py-2 text-sm font-semibold text-white transition hover:border-white"
-              >
-                Contact Sales
-              </button>
-            </div>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {[
-                "Fine-Tuned Models: Train AI on your brand assets.",
-                "Dedicated GPU Clusters: Zero wait times.",
-                "SSO & NDA Mode: Enterprise-grade security.",
-                "Data deletion policies & compliance support.",
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[color:var(--white)]" />
-                  <span className="text-[color:var(--white)]/90">{item}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -671,7 +716,7 @@ export default function PricingPage() {
                         <span>{group.title}</span>
                         <span className="text-center">Free</span>
                         <span className="text-center">Pro</span>
-                        <span className="text-center">Business</span>
+                        <span className="text-center">Team</span>
                       </div>
                       <div className="divide-y divide-[color:var(--charcoal)]/10">
                         {group.rows.map((row) => (
@@ -709,7 +754,7 @@ export default function PricingPage() {
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span className="font-semibold text-[color:var(--grey)]">
-                                    Business
+                                    Team
                                   </span>
                                   <span>{renderPlanValue(row.enterprise)}</span>
                                 </div>
@@ -726,8 +771,8 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mt-16">
-          <h2 className="font-display text-3xl text-left sm:text-4xl">
+        <section className="mt-16 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl">
             Frequently asked questions
           </h2>
           <div className="mt-8 grid items-start gap-4 md:grid-cols-2">
