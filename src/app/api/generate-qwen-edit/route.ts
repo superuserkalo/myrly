@@ -100,7 +100,7 @@ export async function GET(request: Request) {
   if (!entry) {
     return new Response("Not found", { status: 404 });
   }
-  return new Response(entry.buffer, {
+  return new Response(new Uint8Array(entry.buffer), {
     headers: {
       "Content-Type": entry.contentType,
       "Content-Length": entry.buffer.length.toString(),

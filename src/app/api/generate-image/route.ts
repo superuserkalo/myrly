@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 
 type GeminiPart =
   | { text?: string }
-  | { inlineData?: { data: string; mimeType?: string } }
-  | { inline_data?: { data: string; mimeType?: string } };
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +50,7 @@ export async function POST(request: Request) {
   try {
     data = await ai.models.generateContent({
       model,
-      contents: [{ role: "user", parts: requestParts }],
+      contents: [{ role: "user", parts: requestParts } as any],
       config: {
         responseModalities: ["TEXT", "IMAGE"],
         imageConfig: {
@@ -69,14 +67,11 @@ export async function POST(request: Request) {
 
   const responseParts = data?.candidates?.[0]?.content?.parts ?? [];
   const inlinePart = responseParts.find(
-    (part) =>
+    (part: any) =>
       "inlineData" in part ||
       "inline_data" in part ||
       "data" in (part as any),
-  ) as
-    | { inlineData?: { data: string; mimeType?: string } }
-    | { inline_data?: { data: string; mimeType?: string } }
-    | undefined;
+  ) as any;
 
   let base64 =
     inlinePart?.inlineData?.data ?? inlinePart?.inline_data?.data ?? "";
