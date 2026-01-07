@@ -44,7 +44,7 @@ export default function SiteHeader() {
           <img
             src="/moooday_black-removed.png"
             alt="The Mooody"
-            className={`block w-auto self-center transition-all duration-500 ${isScrolled ? "h-6 sm:h-8" : "h-7 sm:h-11"
+            className={`block w-auto self-center transition-all duration-500 ${isScrolled ? "h-7 sm:h-9" : "h-8 sm:h-12"
               }`}
           />
         </Link>

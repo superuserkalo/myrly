@@ -64,6 +64,8 @@ import {
   Wand2,
 } from "lucide-react";
 import PromptInput from "@/components/PromptInput";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../convex/_generated/api";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
@@ -345,11 +347,14 @@ export default function Board2Page() {
   const [selectedElement, setSelectedElement] = useState<ExcalidrawElement | null>(null);
   const [promptValue, setPromptValue] = useState("");
   const [isPromptFocused, setIsPromptFocused] = useState(false);
+  const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [promptAttachments, setPromptAttachments] = useState<PromptAttachment[]>([]);
   const canvasAttachmentIdsRef = useRef<Set<string>>(new Set());
+  const manuallyRemovedIdsRef = useRef<Set<string>>(new Set()); // Track images user manually removed
+  const lastProcessedSelectionRef = useRef<string>(""); // Track last processed selection to prevent loops
   const [generationModel, setGenerationModel] = useState<
-    "gemini" | "zimage" | "grok" | "qwen" | "seedream"
+    "gemini" | "nano-banana" | "zimage" | "grok" | "qwen" | "seedream"
   >("gemini");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [hasPrompted, setHasPrompted] = useState(false);
@@ -369,6 +374,11 @@ export default function Board2Page() {
   const [isExtraToolsOpen, setIsExtraToolsOpen] = useState(false);
   const extraToolsRef = useRef<HTMLDivElement | null>(null);
   const extraToolsButtonRef = useRef<HTMLButtonElement | null>(null);
+  // Batch generation state
+  const [batchCount, setBatchCount] = useState(1);
+  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
+  const jobToPlaceholderMapRef = useRef<Record<string, string>>({});
+  const MAX_CONCURRENT_JOBS = 5;
   const [uiSnapshot, setUiSnapshot] = useState<UiSnapshot>({
     activeTool: "selection",
     currentItemStrokeColor: "#111827",
@@ -379,6 +389,12 @@ export default function Board2Page() {
     isToolLocked: false,
   });
   const uiSnapshotRef = useRef(uiSnapshot);
+
+  // Convex client for job status polling
+  const convexRef = useRef<ConvexHttpClient | null>(null);
+  if (!convexRef.current && typeof window !== "undefined") {
+    convexRef.current = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+  }
 
   const initialData = useMemo(
     () => ({
@@ -954,6 +970,119 @@ export default function Board2Page() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPlacingImages, showToast]);
 
+  // Poll Convex for job completion and update placeholders
+  useEffect(() => {
+    const jobIds = Object.keys(jobToPlaceholderMapRef.current);
+    if (jobIds.length === 0 || !convexRef.current) {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const jobs = await convexRef.current!.query(api.generation.getJobsByIds, {
+          jobIds: jobIds as any,  // Cast to Id<"generationJobs">[]
+        });
+
+        for (const job of jobs) {
+          if (!job) continue;
+
+          const placeholderId = jobToPlaceholderMapRef.current[job._id];
+          if (!placeholderId) continue;
+
+          // Job completed successfully
+          if (job.status === "success" && job.resultImageUrl) {
+            const imageUrl = job.resultImageUrl;
+
+            // Update placeholder with generated image
+            const api = apiRef.current;
+            if (api) {
+              const currentElements = api.getSceneElements() as ExcalidrawElement[];
+              const placeholderEl = currentElements.find((el) => el.id === placeholderId);
+              if (placeholderEl) {
+                // Load image and update element
+                const img = new Image();
+                img.onload = async () => {
+                  const width = img.width;
+                  const height = img.height;
+                  const maxWidth = 360;
+                  const scale = Math.min(1, maxWidth / width);
+                  const scaledWidth = Math.max(1, width * scale);
+                  const scaledHeight = Math.max(1, height * scale);
+                  const centerX = placeholderEl.x + placeholderEl.width / 2;
+                  const centerY = placeholderEl.y + placeholderEl.height / 2;
+                  const x = centerX - scaledWidth / 2;
+                  const y = centerY - scaledHeight / 2;
+                  const fileId = Math.random().toString(36).slice(2);
+
+                  api.addFiles([
+                    {
+                      id: fileId as BinaryFileData["id"],
+                      dataURL: imageUrl as BinaryFileData["dataURL"],
+                      mimeType: "image/png" as BinaryFileData["mimeType"],
+                      created: Date.now(),
+                    },
+                  ]);
+
+                  const updated = currentElements.map((el) =>
+                    el.id === placeholderId
+                      ? {
+                        ...el,
+                        type: "image",
+                        fileId: fileId as FileId,
+                        status: "saved",
+                        x,
+                        y,
+                        width: scaledWidth,
+                        height: scaledHeight,
+                        scale: [1, 1],
+                        opacity: 100,
+                        customData: undefined,
+                      }
+                      : el,
+                  ) as ExcalidrawElement[];
+
+                  api.updateScene({ elements: updated });
+                  pushHistory(updated);
+                };
+                img.src = imageUrl;
+              }
+            }
+
+            // Clean up tracking
+            loadingPlaceholdersRef.current.delete(placeholderId);
+            setGeneratingPlaceholders((prev) => prev.filter((id) => id !== placeholderId));
+            setActiveJobIds((prev) => prev.filter((id) => id !== job._id));
+            delete jobToPlaceholderMapRef.current[job._id];
+          }
+
+          // Job failed
+          if (job.status === "failed") {
+            // Remove placeholder
+            if (apiRef.current) {
+              const currentElements = apiRef.current.getSceneElements() as ExcalidrawElement[];
+              const withoutPlaceholder = currentElements.map((el) =>
+                el.id === placeholderId ? { ...el, isDeleted: true } : el,
+              ) as ExcalidrawElement[];
+              apiRef.current.updateScene({ elements: withoutPlaceholder });
+            }
+
+            // Clean up tracking
+            loadingPlaceholdersRef.current.delete(placeholderId);
+            setGeneratingPlaceholders((prev) => prev.filter((id) => id !== placeholderId));
+            setActiveJobIds((prev) => prev.filter((id) => id !== job._id));
+            delete jobToPlaceholderMapRef.current[job._id];
+
+            showToast(`Generation failed: ${job.error || "Unknown error"}`);
+          }
+        }
+      } catch (error) {
+        console.error("[JobPoller] Error polling jobs:", error);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [activeJobIds, pushHistory, showToast]);
+
   const handleFindOnCanvas = () => {
     const query = window.prompt("Find on canvas");
     if (!query) {
@@ -1034,6 +1163,8 @@ export default function Board2Page() {
     setPromptAttachments((prev) => prev.filter((item) => item.id !== id));
     // Also remove from canvas tracking if it was a canvas attachment
     canvasAttachmentIdsRef.current.delete(id);
+    // Track that this was manually removed - don't auto-add it back while still selected
+    manuallyRemovedIdsRef.current.add(id);
   };
 
   // Add selected canvas images to prompt attachments
@@ -1083,11 +1214,25 @@ export default function Board2Page() {
 
       if (newAttachments.length > 0) {
         setPromptAttachments((prev) => [...prev, ...newAttachments]);
+        // Expand prompt bar when adding images
+        setIsPromptCollapsed(false);
         showToast(`Added ${newAttachments.length} image${newAttachments.length > 1 ? "s" : ""} to prompt`);
       }
     },
     [promptAttachments.length, showToast]
   );
+
+  const addSelectedImagesToPrompt = useCallback(() => {
+    if (!apiRef.current) {
+      return;
+    }
+    const selected = apiRef.current.getAppState().selectedElementIds ?? {};
+    const selectedIds = Object.keys(selected).filter((id) => selected[id]);
+    if (selectedIds.length === 0) {
+      return;
+    }
+    addCanvasImagesToPrompt(selectedIds);
+  }, [addCanvasImagesToPrompt]);
 
   // Remove canvas attachments when their source elements are deleted
   const syncCanvasAttachments = useCallback(() => {
@@ -1114,19 +1259,27 @@ export default function Board2Page() {
       showToast("Type a prompt first");
       return;
     }
-    if (isGeneratingImage) {
+
+    // Check if we can start more jobs
+    const availableSlots = MAX_CONCURRENT_JOBS - activeJobIds.length;
+    if (availableSlots <= 0) {
+      showToast("Max concurrent jobs reached. Wait for a job to complete.");
       return;
     }
-    setIsGeneratingImage(true);
 
-    // Create a placeholder image so users can move/scale the loading slot.
+    // Limit batch to available slots
+    const actualBatchCount = Math.min(batchCount, availableSlots);
+
+    // Create placeholders for each image - placed SIDE BY SIDE
     const center = getViewportCenter();
     const placeholderWidth = 340;
     const placeholderHeight = 450;
-    const placeholderX = center.x - placeholderWidth / 2;
+    const gap = 20;
+    const totalWidth = actualBatchCount * placeholderWidth + (actualBatchCount - 1) * gap;
+    const startX = center.x - totalWidth / 2;
     const placeholderY = center.y - placeholderHeight / 2;
 
-    let placeholderElementId: string | null = null;
+    const placeholderIds: string[] = [];
 
     if (apiRef.current) {
       const api = apiRef.current;
@@ -1138,247 +1291,130 @@ export default function Board2Page() {
       loadingFrameIndexRef.current = 0;
       loadingFrameLastAtRef.current =
         typeof performance !== "undefined" ? performance.now() : Date.now();
+
       const { convertToExcalidrawElements } = await import("@excalidraw/excalidraw");
-      const placeholderFileId = createId();
+
+      // Create N placeholders side by side
+      const placeholderSkeletons = [];
+      for (let i = 0; i < actualBatchCount; i++) {
+        const placeholderX = startX + i * (placeholderWidth + gap);
+        const placeholderFileId = createId();
+        placeholderSkeletons.push({
+          type: "image" as const,
+          x: placeholderX,
+          y: placeholderY,
+          width: placeholderWidth,
+          height: placeholderHeight,
+          status: "pending" as const,
+          fileId: placeholderFileId as FileId,
+          scale: [1, 1] as [number, number],
+          angle: 0,
+          opacity: 0,
+          customData: { moodyLoading: true, moodyFrameIndex: 0 },
+        });
+      }
+
       const placeholderElements = convertToExcalidrawElements(
-        [
-          {
-            type: "image",
-            x: placeholderX,
-            y: placeholderY,
-            width: placeholderWidth,
-            height: placeholderHeight,
-            status: "pending",
-            fileId: placeholderFileId as FileId,
-            scale: [1, 1],
-            angle: 0,
-            opacity: 0,
-            customData: { moodyLoading: true, moodyFrameIndex: 0 },
-          },
-        ],
+        placeholderSkeletons,
         { regenerateIds: true },
       );
 
-      const placeholderElement = placeholderElements[0];
-      if (placeholderElement) {
-        placeholderElementId = placeholderElement.id;
-        const updated = [...api.getSceneElements(), ...placeholderElements];
-        api.updateScene({
-          elements: updated,
-          appState: {
-            selectedElementIds: { [placeholderElement.id]: true },
-            selectedGroupIds: {},
-            editingGroupId: null,
-          },
-        });
-        pushHistory(updated);
-        loadingPlaceholdersRef.current.add(placeholderElement.id);
-        setGeneratingPlaceholders((prev) => [...prev, placeholderElement.id]);
-        api.refresh();
+      // Track all placeholder IDs
+      const selectedIds: Record<string, true> = {};
+      for (const el of placeholderElements) {
+        placeholderIds.push(el.id);
+        selectedIds[el.id] = true;
+        loadingPlaceholdersRef.current.add(el.id);
       }
+
+      const updated = [...api.getSceneElements(), ...placeholderElements];
+      api.updateScene({
+        elements: updated,
+        appState: {
+          selectedElementIds: selectedIds,
+          selectedGroupIds: {},
+          editingGroupId: null,
+        },
+      });
+      pushHistory(updated);
+      setGeneratingPlaceholders((prev) => [...prev, ...placeholderIds]);
+      api.refresh();
     }
 
+    // Track these as active jobs
+    setActiveJobIds((prev) => [...prev, ...placeholderIds]);
+
+    // Prepare input image URLs from attachments  
+    const inputImageUrls = promptAttachments.map((a) => a.url);
+
+    // Call the queue API to submit all jobs at once
     try {
-      const attachmentsPayload = promptAttachments
-        .map((attachment) => {
-          const parts = attachment.url.split(",");
-          if (parts.length < 2) {
-            return null;
-          }
-          return {
-            data: parts[1],
-            mimeType: attachment.mimeType,
-          };
-        })
-        .filter(Boolean);
-      const hasAttachments = promptAttachments.length > 0;
-      const useZImage = generationModel === "zimage" && !hasAttachments;
-      const useQwenEdit = generationModel === "zimage" && hasAttachments;
-      const useGrok = generationModel === "grok";
-      const useSeedream = generationModel === "seedream";
-      const useSeedreamText = useSeedream && !hasAttachments;
-      const useSeedreamEdit = useSeedream && hasAttachments;
-      const useQwenText = generationModel === "qwen" && !hasAttachments;
-      const useQwenImage = generationModel === "qwen" && hasAttachments;
-      const needsReferenceImage = useQwenImage || useSeedreamEdit;
-      const referenceImage = needsReferenceImage
-        ? await buildQwenReferenceImage()
-        : null;
-      if (needsReferenceImage && !referenceImage) {
-        throw new Error("No reference image provided");
-      }
-      const endpoint = useQwenImage
-        ? "/api/generate-qwen-image"
-        : useQwenText
-          ? "/api/generate-qwen"
-          : useSeedreamEdit
-            ? "/api/generate-seedream-edit"
-            : useSeedreamText
-              ? "/api/generate-seedream"
-              : useGrok
-                ? "/api/generate-grok"
-                : useZImage
-                  ? "/api/generate-zimage"
-                  : useQwenEdit
-                    ? "/api/generate-qwen-edit"
-                    : "/api/generate-image";
-      const payload = useQwenImage
-        ? { prompt, image: referenceImage }
-        : useQwenText
-          ? { prompt, imageSize: "portrait_4_3" }
-          : useSeedreamEdit
-            ? {
-              prompt,
-              images: referenceImage ? [referenceImage] : [],
-              aspectRatio: "3:4",
-              quality: "basic",
-            }
-            : useSeedreamText
-              ? { prompt, aspectRatio: "3:4", quality: "basic" }
-              : useGrok
-                ? { prompt, aspectRatio: "2:3" }
-                : useZImage
-                  ? { prompt, aspectRatio: "3:4" }
-                  : useQwenEdit
-                    ? { prompt, image: promptAttachments[0]?.url }
-                    : { prompt, attachments: attachmentsPayload };
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/queue/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          model: generationModel,
+          prompt,
+          inputImageUrls,
+          variations: actualBatchCount,
+          placeholderIds,  // Pass placeholder IDs so we can track them
+        }),
       });
+
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => null);
         throw new Error(
-          errorPayload?.details ||
-          errorPayload?.error ||
-          "Generation failed",
+          (errorPayload as { error?: string })?.error || "Failed to queue generation"
         );
       }
-      const data = await response.json();
-      const imageData = data?.image as string | undefined;
-      if (!imageData) {
-        throw new Error("No image returned");
-      }
-      const resolvedDataUrl = imageData.startsWith("data:")
-        ? imageData
-        : await (async () => {
-          const imageResponse = await fetch(imageData);
-          if (!imageResponse.ok) {
-            throw new Error("Failed to load image");
+
+      const data = await response.json() as { jobIds?: string[]; success?: boolean; message?: string };
+      console.log("[Queue] Submitted jobs:", data);
+
+      // Store mapping of jobId -> placeholderId for when jobs complete
+      if (data.jobIds && Array.isArray(data.jobIds)) {
+        const mapping: Record<string, string> = {};
+        data.jobIds.forEach((jobId: string, index: number) => {
+          if (placeholderIds[index]) {
+            mapping[jobId] = placeholderIds[index];
           }
-          const blob = await imageResponse.blob();
-          return blobToDataUrl(blob);
-        })();
-
-      const mimeType = getMimeFromDataUrl(resolvedDataUrl);
-
-      const api = apiRef.current;
-      const applyGeneratedImageToPlaceholder = async (placeholderId: string) => {
-        if (!api) {
-          return false;
-        }
-        const currentElements = api.getSceneElements() as ExcalidrawElement[];
-        const placeholderEl = currentElements.find((el) => el.id === placeholderId);
-        if (!placeholderEl) {
-          return false;
-        }
-
-        const { width, height } = await loadImageDimensions(resolvedDataUrl);
-        const maxWidth = 360;
-        const scale = Math.min(1, maxWidth / width);
-        const scaledWidth = Math.max(1, width * scale);
-        const scaledHeight = Math.max(1, height * scale);
-        const centerX = placeholderEl.x + placeholderEl.width / 2;
-        const centerY = placeholderEl.y + placeholderEl.height / 2;
-        const x = centerX - scaledWidth / 2;
-        const y = centerY - scaledHeight / 2;
-        const fileId = createId();
-
-        api.addFiles([
-          {
-            id: fileId as BinaryFileData["id"],
-            dataURL: resolvedDataUrl as BinaryFileData["dataURL"],
-            mimeType: mimeType as BinaryFileData["mimeType"],
-            created: Date.now(),
-          },
-        ]);
-
-        const updated = currentElements.map((el) =>
-          el.id === placeholderId
-            ? (() => {
-              const customData = { ...(el.customData ?? {}) } as MoodyLoadingData;
-              delete customData.moodyLoading;
-              delete customData.moodyFrameIndex;
-              return {
-                ...el,
-                type: "image",
-                fileId: fileId as FileId,
-                status: "saved",
-                x,
-                y,
-                width: scaledWidth,
-                height: scaledHeight,
-                scale: [1, 1],
-                opacity: 100,
-                customData: Object.keys(customData).length ? customData : undefined,
-              };
-            })()
-            : el,
-        ) as ExcalidrawElement[];
-
-        api.updateScene({
-          elements: updated,
-          appState: {
-            selectedElementIds: { [placeholderId]: true },
-            selectedGroupIds: {},
-            editingGroupId: null,
-          },
         });
-        pushHistory(updated);
-        loadingPlaceholdersRef.current.delete(placeholderId);
-        setGeneratingPlaceholders((prev) =>
-          prev.filter((id) => id !== placeholderId),
-        );
-
-        return true;
-      };
-
-      if (api && placeholderElementId) {
-        const applied = await applyGeneratedImageToPlaceholder(placeholderElementId);
-        if (!applied) {
-          loadingPlaceholdersRef.current.delete(placeholderElementId);
-          setGeneratingPlaceholders((prev) =>
-            prev.filter((id) => id !== placeholderElementId),
-          );
-          await addImagesToScene([{ dataUrl: resolvedDataUrl, mimeType }], center);
-        }
-      } else {
-        await addImagesToScene([{ dataUrl: resolvedDataUrl, mimeType }], center);
+        // Store in a ref for later use when Convex updates come in
+        jobToPlaceholderMapRef.current = {
+          ...jobToPlaceholderMapRef.current,
+          ...mapping,
+        };
       }
 
-      setPromptValue("");
-      setPromptAttachments([]);
-      setHasPrompted(true);
     } catch (error) {
-      // Remove placeholder on error
-      if (placeholderElementId && apiRef.current) {
+      // Remove all placeholders on queue error
+      if (apiRef.current) {
         const currentElements = apiRef.current.getSceneElements() as ExcalidrawElement[];
-        const withoutPlaceholder = currentElements.map((el) =>
-          el.id === placeholderElementId ? { ...el, isDeleted: true } : el,
+        const withoutPlaceholders = currentElements.map((el) =>
+          placeholderIds.includes(el.id) ? { ...el, isDeleted: true } : el,
         ) as ExcalidrawElement[];
-        apiRef.current.updateScene({ elements: withoutPlaceholder });
-        loadingPlaceholdersRef.current.delete(placeholderElementId);
-        setGeneratingPlaceholders((prev) =>
-          prev.filter((id) => id !== placeholderElementId),
-        );
+        apiRef.current.updateScene({ elements: withoutPlaceholders });
       }
-      const message =
-        error instanceof Error ? error.message : "Image generation failed";
+
+      placeholderIds.forEach((id) => {
+        loadingPlaceholdersRef.current.delete(id);
+      });
+      setGeneratingPlaceholders((prev) =>
+        prev.filter((id) => !placeholderIds.includes(id))
+      );
+      setActiveJobIds((prev) =>
+        prev.filter((id) => !placeholderIds.includes(id))
+      );
+
+      const message = error instanceof Error ? error.message : "Failed to queue generation";
       showToast(message);
-    } finally {
-      setIsGeneratingImage(false);
+      return;
     }
+
+    // Clear prompt immediately - user can start typing next prompt
+    setPromptValue("");
+    setPromptAttachments([]);
+    setHasPrompted(true);
   };
 
   useEffect(() => {
@@ -1632,6 +1668,7 @@ export default function Board2Page() {
       }
       const snapshot = api.getSceneElements();
       pushHistory(snapshot);
+      addSelectedImagesToPrompt();
     });
 
     appStateRef.current = api.getAppState();
@@ -1653,18 +1690,30 @@ export default function Board2Page() {
     };
   }, [apiReady, handleSceneChange, pushHistory]);
 
-  // Auto-add selected images to prompt attachments
+  // Auto-add selected images to prompt attachments (only on NEW selections)
   useEffect(() => {
     if (selectedIds.length === 0) {
+      // Clear manual removal tracking when selection is cleared
+      manuallyRemovedIdsRef.current.clear();
       return;
     }
+
+    // Create a unique key for current selection to detect changes
+    const selectionKey = [...selectedIds].sort().join(',');
+    if (selectionKey === lastProcessedSelectionRef.current) {
+      // Already processed this exact selection, skip to prevent loops
+      return;
+    }
+    lastProcessedSelectionRef.current = selectionKey;
+
     const selectedImageIds = elementsRef.current
       .filter(
         (el) =>
           selectedIds.includes(el.id) &&
           el.type === "image" &&
           !el.isDeleted &&
-          !isMoodyLoadingElement(el),
+          !isMoodyLoadingElement(el) &&
+          !manuallyRemovedIdsRef.current.has(el.id), // Don't re-add manually removed images
       )
       .map((el) => el.id);
     if (selectedImageIds.length > 0) {
@@ -2728,45 +2777,78 @@ export default function Board2Page() {
         </div>
       </div>
 
-      <div className="fixed bottom-6 left-1/2 z-30 w-[min(680px,92vw)] -translate-x-1/2">
-        <PromptInput
-          showMic
-          layout="stacked"
-          value={promptValue}
-          onValueChange={setPromptValue}
-          onSubmit={handleGenerateImage}
-          loadingOverride={isGeneratingImage}
-          onFocusChange={setIsPromptFocused}
-          modelOptions={[
-            { id: "gemini", label: "Nano Banana Pro" },
-            { id: "zimage", label: "Z-Image" },
-            { id: "grok", label: "Grok Image" },
-            { id: "qwen", label: "Qwen Image" },
-            { id: "seedream", label: "Seedream 4.5" },
-          ]}
-          selectedModel={generationModel}
-          onSelectModel={(id) => {
-            if (id === "zimage") {
-              setGenerationModel("zimage");
-            } else if (id === "grok") {
-              setGenerationModel("grok");
-            } else if (id === "qwen") {
-              setGenerationModel("qwen");
-            } else if (id === "seedream") {
-              setGenerationModel("seedream");
-            } else {
-              setGenerationModel("gemini");
+      {/* Collapsible Prompt Bar */}
+      <div
+        className={`fixed left-1/2 z-30 -translate-x-1/2 flex flex-col items-center transition-all duration-300 ease-out ${isPromptCollapsed ? "bottom-0" : "bottom-6"
+          }`}
+      >
+        {/* Toggle arrow - only visible when expanded */}
+        {!isPromptCollapsed && (
+          <button
+            type="button"
+            onClick={() => setIsPromptCollapsed(true)}
+            className="mb-1 flex items-center justify-center text-[color:var(--text-secondary)] transition-all duration-300 hover:text-[color:var(--text-primary)] hover:scale-110"
+            aria-label="Collapse prompt bar"
+          >
+            <ChevronDown className="h-6 w-6 stroke-[2.5]" />
+          </button>
+        )}
+
+        {/* Prompt bar container - peeks when collapsed, hover on THIS element triggers animation */}
+        <div
+          className={`group w-[min(680px,92vw)] transition-all duration-300 ease-out ${isPromptCollapsed
+            ? "translate-y-[calc(100%-24px)] opacity-75 hover:translate-y-[calc(100%-52px)] hover:opacity-100 cursor-pointer rounded-t-2xl ring-2 ring-[color:var(--charcoal)]/30 shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+            : "translate-y-0 opacity-100"
+            }`}
+          onClick={() => isPromptCollapsed && setIsPromptCollapsed(false)}
+        >
+          <PromptInput
+            showMic
+            layout="stacked"
+            value={promptValue}
+            onValueChange={setPromptValue}
+            onSubmit={handleGenerateImage}
+            loadingOverride={activeJobIds.length >= MAX_CONCURRENT_JOBS}
+            onFocusChange={setIsPromptFocused}
+            modelOptions={[
+              { id: "gemini", label: "Nano Banana Pro" },
+              { id: "nano-banana", label: "Nano Banana" },
+              { id: "zimage", label: "Z-Image" },
+              { id: "grok", label: "Grok Image" },
+              { id: "qwen", label: "Qwen Image" },
+              { id: "seedream", label: "Seedream 4.5" },
+            ]}
+            selectedModel={generationModel}
+            onSelectModel={(id) => {
+              if (id === "nano-banana") {
+                setGenerationModel("nano-banana");
+              } else if (id === "zimage") {
+                setGenerationModel("zimage");
+              } else if (id === "grok") {
+                setGenerationModel("grok");
+              } else if (id === "qwen") {
+                setGenerationModel("qwen");
+              } else if (id === "seedream") {
+                setGenerationModel("seedream");
+              } else {
+                setGenerationModel("gemini");
+              }
+            }}
+            enableAttachmentMenu
+            attachments={promptAttachments}
+            onAddAttachments={handleAddAttachments}
+            onReplaceAttachment={handleReplaceAttachment}
+            onRemoveAttachment={handleRemoveAttachment}
+            placeholder={
+              hasPrompted ? "" : "Describe items to start generating your mood board"
             }
-          }}
-          enableAttachmentMenu
-          attachments={promptAttachments}
-          onAddAttachments={handleAddAttachments}
-          onReplaceAttachment={handleReplaceAttachment}
-          onRemoveAttachment={handleRemoveAttachment}
-          placeholder={
-            hasPrompted ? "" : "Describe items to start generating your mood board"
-          }
-        />
+            showBatchSelector
+            batchCount={batchCount}
+            onBatchCountChange={setBatchCount}
+            activeJobCount={activeJobIds.length}
+            maxConcurrentJobs={MAX_CONCURRENT_JOBS}
+          />
+        </div>
       </div>
 
       <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2">

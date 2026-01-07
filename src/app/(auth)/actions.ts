@@ -41,7 +41,7 @@ async function setSessionCookie(authResult: {
 
     const sealed = await sealData(sessionData, {
         password: cookiePassword,
-        ttl: 60 * 60 * 24 * 400,
+        ttl: 60 * 60 * 24 * 90, // 90 days - standard for productivity apps
     });
 
     const cookieStore = await cookies();
@@ -50,7 +50,7 @@ async function setSessionCookie(authResult: {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 400,
+        maxAge: 60 * 60 * 24 * 90, // 90 days
     });
 }
 

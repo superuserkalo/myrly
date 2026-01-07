@@ -39,6 +39,13 @@ type PromptInputProps = {
   onAddAttachments?: (files: File[]) => void;
   onReplaceAttachment?: (id: string, file: File) => void;
   onRemoveAttachment?: (id: string) => void;
+  // Batch generation props
+  showBatchSelector?: boolean;
+  batchCount?: number;
+  maxBatchCount?: number;
+  onBatchCountChange?: (count: number) => void;
+  activeJobCount?: number;
+  maxConcurrentJobs?: number;
 };
 
 const IconPlus = ({ className }: { className?: string }) => (
@@ -90,6 +97,24 @@ const IconMic = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const IconBatch = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
 export default function PromptInput({
   placeholder = "Describe items to start generating your mood board",
   className = "",
@@ -115,6 +140,13 @@ export default function PromptInput({
   onAddAttachments,
   onReplaceAttachment,
   onRemoveAttachment,
+  // Batch generation props
+  showBatchSelector = false,
+  batchCount = 1,
+  maxBatchCount = 5,
+  onBatchCountChange,
+  activeJobCount = 0,
+  maxConcurrentJobs = 5,
 }: PromptInputProps) {
   const maxTextareaHeight = 152;
   const [internalValue, setInternalValue] = useState("");
@@ -133,6 +165,9 @@ export default function PromptInput({
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const modelMenuRef = useRef<HTMLDivElement | null>(null);
   const modelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const batchMenuRef = useRef<HTMLDivElement | null>(null);
+  const batchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [isBatchMenuOpen, setIsBatchMenuOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const resolvedValue = value ?? internalValue;
   const handleValueChange = onValueChange ?? setInternalValue;
@@ -141,15 +176,15 @@ export default function PromptInput({
   const variantStyles =
     variant === "light"
       ? ({
-          "--prompt-text": "#111827",
-          "--prompt-muted": "rgba(17, 24, 39, 0.55)",
-          "--prompt-button-bg": "rgba(15, 23, 42, 0.08)",
-          "--prompt-button-soft": "rgba(15, 23, 42, 0.05)",
-          "--prompt-button-hover": "rgba(15, 23, 42, 0.14)",
-          "--prompt-surface": "#ffffff",
-          "--prompt-border": "rgba(15, 23, 42, 0.18)",
-          "--prompt-shadow": "0 12px 28px rgba(15, 23, 42, 0.15)",
-        } as CSSProperties)
+        "--prompt-text": "#111827",
+        "--prompt-muted": "rgba(17, 24, 39, 0.55)",
+        "--prompt-button-bg": "rgba(15, 23, 42, 0.08)",
+        "--prompt-button-soft": "rgba(15, 23, 42, 0.05)",
+        "--prompt-button-hover": "rgba(15, 23, 42, 0.14)",
+        "--prompt-surface": "#ffffff",
+        "--prompt-border": "rgba(15, 23, 42, 0.18)",
+        "--prompt-shadow": "0 12px 28px rgba(15, 23, 42, 0.15)",
+      } as CSSProperties)
       : undefined;
 
   useEffect(() => {
@@ -223,7 +258,7 @@ export default function PromptInput({
   }, [resolvedValue]);
 
   useEffect(() => {
-    if (!isMenuOpen && !isModelMenuOpen) {
+    if (!isMenuOpen && !isModelMenuOpen && !isBatchMenuOpen) {
       return;
     }
     const handleClick = (event: MouseEvent) => {
@@ -232,18 +267,21 @@ export default function PromptInput({
         menuRef.current?.contains(target) ||
         menuButtonRef.current?.contains(target) ||
         modelMenuRef.current?.contains(target) ||
-        modelButtonRef.current?.contains(target)
+        modelButtonRef.current?.contains(target) ||
+        batchMenuRef.current?.contains(target) ||
+        batchButtonRef.current?.contains(target)
       ) {
         return;
       }
       setIsMenuOpen(false);
       setIsModelMenuOpen(false);
+      setIsBatchMenuOpen(false);
     };
     window.addEventListener("click", handleClick);
     return () => {
       window.removeEventListener("click", handleClick);
     };
-  }, [isMenuOpen, isModelMenuOpen]);
+  }, [isMenuOpen, isModelMenuOpen, isBatchMenuOpen]);
 
   useEffect(() => {
     return () => {
@@ -354,11 +392,10 @@ export default function PromptInput({
                     key={option.id}
                     type="button"
                     onClick={() => handleSelectModel(option.id)}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
-                      isSelected
-                        ? "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-text)]"
-                        : "text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-button-soft)]"
-                    }`}
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${isSelected
+                      ? "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-text)]"
+                      : "text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-button-soft)]"
+                      }`}
                   >
                     <span>{option.label}</span>
                     {isSelected ? (
@@ -404,9 +441,8 @@ export default function PromptInput({
 
   return (
     <div
-      className={`relative flex flex-col gap-2 rounded-2xl border-2 border-[color:var(--prompt-border)] bg-[color:var(--prompt-surface)] p-3 ${
-        showShadow ? "shadow-[var(--prompt-shadow)]" : ""
-      } ${className}`}
+      className={`relative flex flex-col gap-2 rounded-2xl border-2 border-[color:var(--prompt-border)] bg-[color:var(--prompt-surface)] p-3 ${showShadow ? "shadow-[var(--prompt-shadow)]" : ""
+        } ${className}`}
       style={variantStyles}
     >
       {showEdgeHighlights && (
@@ -505,13 +541,87 @@ export default function PromptInput({
               {modelSelector}
             </div>
             <div className="flex items-center gap-2">
+              {showBatchSelector && (
+                <div className="relative">
+                  <button
+                    ref={batchButtonRef}
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsModelMenuOpen(false);
+                      setIsBatchMenuOpen((prev) => !prev);
+                    }}
+                    className={`flex h-11 items-center gap-1.5 rounded-xl border border-[color:var(--charcoal)] px-3 transition cursor-pointer ${isBatchMenuOpen
+                        ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
+                        : "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
+                      }`}
+                    aria-label={`Generate ${batchCount} image${batchCount > 1 ? 's' : ''}`}
+                    aria-haspopup="menu"
+                    aria-expanded={isBatchMenuOpen}
+                  >
+                    <IconBatch className="h-4 w-4" />
+                    <span className="text-sm font-medium">{batchCount}x</span>
+                    {activeJobCount > 0 && (
+                      <span className={`ml-0.5 text-xs ${activeJobCount >= maxConcurrentJobs
+                          ? 'text-red-400'
+                          : activeJobCount >= maxConcurrentJobs - 1
+                            ? 'text-amber-400'
+                            : 'text-[color:var(--prompt-muted)]'
+                        }`}>
+                        ({activeJobCount}/{maxConcurrentJobs})
+                      </span>
+                    )}
+                  </button>
+                  {isBatchMenuOpen && (
+                    <div
+                      ref={batchMenuRef}
+                      className="absolute left-0 bottom-12 z-20 w-40 rounded-2xl border border-[color:var(--prompt-border)]/20 bg-[color:var(--prompt-surface)] p-2 text-sm text-[color:var(--prompt-text)] shadow-[0_18px_36px_rgba(15,23,42,0.12)]"
+                      role="menu"
+                    >
+                      <div className="mb-1 px-2 text-xs text-[color:var(--prompt-muted)]">
+                        Images per prompt
+                      </div>
+                      {[1, 2, 3, 4, 5].slice(0, maxBatchCount).map((count) => {
+                        const wouldExceed = activeJobCount + count > maxConcurrentJobs;
+                        return (
+                          <button
+                            key={count}
+                            type="button"
+                            role="menuitem"
+                            disabled={wouldExceed}
+                            onClick={() => {
+                              onBatchCountChange?.(count);
+                              setIsBatchMenuOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 transition ${batchCount === count
+                                ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
+                                : wouldExceed
+                                  ? "cursor-not-allowed opacity-40"
+                                  : "hover:bg-[color:var(--prompt-button-soft)]"
+                              }`}
+                          >
+                            <span>{count} image{count > 1 ? 's' : ''}</span>
+                            {batchCount === count && (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </button>
+                        );
+                      })}
+                      {activeJobCount > 0 && (
+                        <div className="mt-2 border-t border-[color:var(--prompt-border)]/20 pt-2 px-2 text-xs text-[color:var(--prompt-muted)]">
+                          {activeJobCount} job{activeJobCount > 1 ? 's' : ''} running
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               {showMic && (
                 <button
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] transition ${
-                    isRecording
-                      ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
-                      : "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
-                  } ${isMicSupported ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] transition ${isRecording
+                    ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
+                    : "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
+                    } ${isMicSupported ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
                   aria-label="Start voice input"
                   aria-pressed={isRecording}
                   type="button"
@@ -522,11 +632,10 @@ export default function PromptInput({
                 </button>
               )}
               <button
-                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] text-[color:var(--prompt-text)] transition cursor-pointer ${
-                  submitHoverOverride
-                    ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
-                    : "bg-[color:var(--prompt-button-bg)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
-                }`}
+                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] text-[color:var(--prompt-text)] transition cursor-pointer ${submitHoverOverride
+                  ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
+                  : "bg-[color:var(--prompt-button-bg)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
+                  }`}
                 aria-label="Generate mood board"
                 type="button"
                 aria-busy={resolvedLoading}
@@ -594,11 +703,10 @@ export default function PromptInput({
           />
           {showMic && (
             <button
-              className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] transition ${
-                isRecording
-                  ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
-                  : "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
-              } ${isMicSupported ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
+              className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] transition ${isRecording
+                ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
+                : "bg-[color:var(--prompt-button-soft)] text-[color:var(--prompt-muted)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
+                } ${isMicSupported ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
               aria-label="Start voice input"
               aria-pressed={isRecording}
               type="button"
@@ -609,11 +717,10 @@ export default function PromptInput({
             </button>
           )}
           <button
-            className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] text-[color:var(--prompt-text)] transition cursor-pointer ${
-              submitHoverOverride
-                ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
-                : "bg-[color:var(--prompt-button-bg)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
-            }`}
+            className={`flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--charcoal)] text-[color:var(--prompt-text)] transition cursor-pointer ${submitHoverOverride
+              ? "bg-[color:var(--prompt-accent-soft)] text-[color:var(--prompt-accent-strong)]"
+              : "bg-[color:var(--prompt-button-bg)] hover:bg-[color:var(--prompt-accent-soft)] hover:text-[color:var(--prompt-accent-strong)]"
+              }`}
             aria-label="Generate mood board"
             type="button"
             aria-busy={resolvedLoading}

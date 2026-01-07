@@ -434,6 +434,7 @@ export default defineSchema({
     providerTaskId: v.optional(v.string()),
 
     resultAssetId: v.optional(v.id("assets")),
+    resultImageUrl: v.optional(v.string()),  // For direct image URLs (Gemini)
     error: v.optional(v.string()),
 
     createdAt: v.number(),
@@ -441,7 +442,8 @@ export default defineSchema({
   })
     .index("by_status_priority_createdAt", ["status", "priority", "createdAt"])
     .index("by_workspaceId_createdAt", ["workspaceId", "createdAt"])
-    .index("by_createdBy_createdAt", ["createdBy", "createdAt"]),
+    .index("by_createdBy_createdAt", ["createdBy", "createdAt"])
+    .index("by_providerTaskId", ["providerTaskId"]),
 
   /**
    * =========================

@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as generation from "../generation.js";
 import type * as onboarding from "../onboarding.js";
 import type * as users from "../users.js";
+import type * as workspaces from "../workspaces.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +20,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  generation: typeof generation;
   onboarding: typeof onboarding;
   users: typeof users;
+  workspaces: typeof workspaces;
 }>;
 
 /**
